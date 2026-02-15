@@ -245,6 +245,17 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// SEO fayllari (robots.txt va sitemap.xml)
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.sendFile(path.join(__dirname, 'robots.txt'));
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    res.sendFile(path.join(__dirname, 'sitemap.xml'));
+});
+
 // Socket.io ulanishini tinglash
 io.on('connection', (socket) => {
   console.log('Yangi foydalanuvchi ulandi ID:', socket.id);
