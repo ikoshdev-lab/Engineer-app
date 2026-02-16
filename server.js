@@ -68,8 +68,8 @@ const UserSchema = new mongoose.Schema({
     portfolio: Array,
     isPremium: { type: Boolean, default: false },
     isMentor: { type: Boolean, default: false },
-    followers: { type: Number, default: 0 },
-    following: { type: Number, default: 0 },
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
     isBlocked: { type: Boolean, default: false },
@@ -116,6 +116,16 @@ const MessageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model('Message', MessageSchema);
 
+// Story Jadvali (24 soatdan keyin o'chadi)
+const StorySchema = new mongoose.Schema({
+    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    image: String,
+    video: String,
+    type: { type: String, default: 'image' },
+    timestamp: { type: Date, default: Date.now, expires: 86400 } // 86400 sekund = 24 soat
+});
+const Story = mongoose.model('Story', StorySchema);
+
 // --- API ROUTES (Backend funksiyalari) ---
 
 // 1. Ro'yxatdan o'tish
@@ -157,7 +167,13 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 // 4. Foydalanuvchilarni olish
 app.get('/api/users', async (req, res) => {
     const users = await User.find();
-    res.json(users.map(u => ({ ...u._doc, id: u._id, userId: u.email })));
+    res.json(users.map(u => ({ 
+        ...u._doc, 
+        id: u._id, 
+        userId: u.email,
+        followersCount: u.followers.length,
+        followingCount: u.following.length
+    })));
 });
 
 // 5. Post yaratish
@@ -237,6 +253,58 @@ app.put('/api/users/:id', async (req, res) => {
         res.json({ success: true, user });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 11. Story yaratish
+app.post('/api/stories', async (req, res) => {
+    try {
+        const { authorId, image, video, type } = req.body;
+        const newStory = new Story({ author: authorId, image, video, type });
+        await newStory.save();
+        res.json(newStory);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 12. Storylarni olish
+app.get('/api/stories', async (req, res) => {
+    try {
+        const stories = await Story.find().populate('author').sort({ timestamp: -1 });
+        res.json(stories);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 13. Obuna bo'lish (Follow/Unfollow)
+app.post('/api/users/follow', async (req, res) => {
+    try {
+        const { currentUserId, targetUserId } = req.body;
+        
+        const currentUser = await User.findById(currentUserId);
+        const targetUser = await User.findById(targetUserId);
+
+        if (!currentUser || !targetUser) return res.status(404).json({ error: 'User not found' });
+
+        // Tekshirish: allaqachon obuna bo'lganmi?
+        const isFollowing = currentUser.following.includes(targetUserId);
+
+        if (isFollowing) {
+            currentUser.following.pull(targetUserId);
+            targetUser.followers.pull(currentUserId);
+        } else {
+            currentUser.following.push(targetUserId);
+            targetUser.followers.push(currentUserId);
+        }
+
+        await currentUser.save();
+        await targetUser.save();
+
+        res.json({ success: true, isFollowing: !isFollowing });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

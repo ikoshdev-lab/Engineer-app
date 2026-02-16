@@ -754,6 +754,7 @@
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
             background: var(--card-bg); border-top: 1px solid var(--border-color);
+            z-index: 1001;
         }
         body.dark-mode .bottom-nav {
             background: rgba(22, 27, 34, 0.9); /* Glassmorphism Dark */
@@ -1149,6 +1150,10 @@
             width: 100%;
             height: 60px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 1001;
+            background: var(--header-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
         }
 
         body.dark-mode .mobile-header {
@@ -1159,7 +1164,7 @@
         @media (max-width: 900px) {
             .nav-menu { display: none; }
             .bottom-nav { display: flex; }
-            body { padding-bottom: 70px; padding-top: 60px; }
+            body { padding-bottom: 80px; padding-top: 70px; }
             .container { grid-template-columns: 1fr; margin-top: 20px; padding: 0 10px; }
             .left-sidebar, .right-sidebar { display: none; }
             .mobile-header { display: flex; }
@@ -1795,7 +1800,7 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
         @media (max-width: 768px) {
             /* Container & Layout */
             .container { padding: 0; margin-top: 0; gap: 0; display: block; }
-            body { padding-top: 55px; padding-bottom: 60px; background: #f1f5f9; }
+            body { padding-top: 55px; padding-bottom: 120px; background: #f1f5f9; }
             
             /* Cards */
             .card, .post, .story-card { 
@@ -1809,7 +1814,7 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
             .msg-container { height: calc(100vh - 120px); border: none; border-radius: 0; }
             .msg-sidebar { width: 100%; height: 100%; position: absolute; z-index: 10; background: var(--card-bg); }
             .msg-content { 
-                width: 100%; height: 100%; position: absolute; z-index: 20; 
+                width: 100%; height: 100%; position: absolute; z-index: 20; bottom: 0; padding-bottom: 60px;
                 background: var(--card-bg); transform: translateX(100%); transition: transform 0.3s ease; 
                 display: flex; flex-direction: column;
             }
@@ -1837,9 +1842,9 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
                 display: flex;
                 flex-direction: column;
             }
-            .modal-body { flex: 1; overflow-y: auto; padding-bottom: 80px; }
+            .modal-body { flex: 1; overflow-y: auto; padding-bottom: 120px; }
             .modal-footer { position: sticky; bottom: 0; background: var(--card-bg); z-index: 10; padding-bottom: 20px; }
-            .container { padding-bottom: 80px; } /* Bottom nav uchun joy */
+            .container { padding-bottom: 100px; } /* Bottom nav uchun joy */
         }
 
         /* Message Badge Style */
@@ -2935,6 +2940,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         <div class="msg-input-area">
                             <input type="text" id="msg-full-input" placeholder="Xabar yozing..." style="flex: 1; padding: 10px; border-radius: 20px; border: 1px solid var(--border-color);" onkeypress="handleFullChatKey(event)">
                             <i class="ri-attachment-2" style="font-size: 20px; color: var(--text-gray); cursor: pointer; align-self: center;" onclick="document.getElementById('full-chat-file-input').click()"></i>
+                            <i class="ri-mic-fill" style="font-size: 20px; color: var(--text-gray); cursor: pointer; align-self: center; margin-left: 5px;" onclick="sendVoiceMessage()" title="Ovozli xabar"></i>
+                            <i class="ri-vidicon-fill" style="font-size: 20px; color: var(--text-gray); cursor: pointer; align-self: center; margin-left: 5px;" onclick="recordVideoNote()" id="btn-video-note" title="Video xabar"></i>
                             <input type="file" id="full-chat-file-input" hidden accept="image/*" onchange="handleChatImageUpload(this, 'full')">
                             <button onclick="sendFullMessage()" style="color: var(--primary-color); font-weight: 600;">Jo'natish</button>
                         </div>
@@ -3726,11 +3733,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
         let visiblePostCount = 5; // Infinite scroll uchun
 
-        let stories = safeJSONParse('stories', [
-            { id: 1, user: 'Ali', img: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=200&h=300&fit=crop', avatar: 'https://i.pravatar.cc/150?u=1', type: 'image' },
-            { id: 2, user: 'Vali', img: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=200&h=300&fit=crop', avatar: 'https://i.pravatar.cc/150?u=2', type: 'image' },
-            { id: 3, user: 'Guli', img: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=200&h=300&fit=crop', avatar: 'https://i.pravatar.cc/150?u=3', type: 'image' }
-        ]);
+        let stories = [];
 
         // Socket Events
         if(socket) {
@@ -3880,10 +3883,34 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         async function loadDataFromServer() {
             try {
                 renderSkeletonFeed('feed-container', 3); // Skeleton loading
-                const usersRes = await fetch('/api/users');
-                const postsRes = await fetch('/api/posts');
-                if(usersRes.ok) allUsers = await usersRes.json();
-                if(postsRes.ok) allPosts = await postsRes.json();
+                const [usersRes, postsRes, storiesRes] = await Promise.all([
+                    fetch('/api/users'),
+                    fetch('/api/posts'),
+                    fetch('/api/stories')
+                ]);
+
+                if(usersRes.ok) {
+                    allUsers = await usersRes.json();
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                }
+                if(postsRes.ok) {
+                    allPosts = await postsRes.json();
+                    saveAllPostsToLocal();
+                }
+                if(storiesRes.ok) {
+                    const serverStories = await storiesRes.json();
+                    // Format stories for frontend
+                    stories = serverStories.map(s => ({
+                        id: s._id,
+                        user: s.author ? s.author.name : 'Foydalanuvchi',
+                        avatar: s.author ? s.author.avatar : 'https://via.placeholder.com/50',
+                        img: s.image || s.video,
+                        type: s.type,
+                        timestamp: new Date(s.timestamp).getTime()
+                    }));
+                    renderStories();
+                }
+
                 // Simulyatsiya qilingan kechikish (real hayotda fetch vaqti)
                 setTimeout(() => renderPosts(), 1500); 
             } catch(e) { console.log("Serverga ulanib bo'lmadi"); }
@@ -4115,25 +4142,37 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         // Story yuklash
-        function handleStoryUpload(input) {
+        async function handleStoryUpload(input) {
             const file = input.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const type = file.type.startsWith('video') ? 'video' : 'image';
-                const newStory = {
-                    id: Date.now(),
-                    user: 'Siz',
-                    img: e.target.result,
-                    avatar: currentUser.avatar,
-                    type: type,
-                    timestamp: Date.now() // Vaqtni saqlash
-                };
-                stories.unshift(newStory);
-                localStorage.setItem('stories', JSON.stringify(stories));
-                renderStories();
-            };
-            reader.readAsDataURL(file);
+            
+            showToast("Story yuklanmoqda...", "info");
+            
+            const uploadData = await uploadFileToServer(file);
+            if (!uploadData) return;
+
+            const type = file.type.startsWith('video') ? 'video' : 'image';
+            
+            try {
+                const res = await fetch('/api/stories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        authorId: currentUser._id,
+                        image: uploadData.url, // Server uses 'image' field for URL
+                        video: type === 'video' ? uploadData.url : null,
+                        type: type
+                    })
+                });
+                
+                if (res.ok) {
+                    showToast("Story muvaffaqiyatli joylandi!", "success");
+                    loadDataFromServer(); // Refresh stories
+                }
+            } catch (e) {
+                console.error(e);
+                showToast("Xatolik yuz berdi", "error");
+            }
         }
 
         // --- GLOBAL SEARCH & PROFILE OPENING ---
@@ -6618,7 +6657,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             if (!isLive) {
                 try {
                     // Kamera va mikrofonga ruxsat so'rash
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    // Telefonda old kamerani olish (facingMode: 'user')
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
                     currentStream = stream;
 
                     // UI ni yangilash
@@ -7265,6 +7305,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         }
 
                         saveAccount(currentUser);
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
                         showToast("Xush kelibsiz, " + currentUser.name + "!", 'success');
                         completeLogin();
                         loadDataFromServer(); // Login bo'lganda ma'lumotlarni yuklash
@@ -7478,6 +7519,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             if (confirm("Haqiqatan ham hisobdan chiqmoqchimisiz?")) {
                 document.getElementById('main-app').style.display = 'none';
                 document.getElementById('login-page').style.display = 'flex';
+                localStorage.removeItem('currentUser');
                 // Inputlarni tozalash
                 document.getElementById('login-username').value = '';
                 document.getElementById('login-password').value = '';
@@ -8662,7 +8704,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     // UI o'zgarishi
                     micBtn.className = 'ri-stop-circle-fill';
                     micBtn.style.color = '#ef4444';
-                    document.getElementById('chat-input').placeholder = 'Yozilmoqda...';
+                    if(document.getElementById('chat-input')) document.getElementById('chat-input').placeholder = 'Yozilmoqda...';
+                    if(document.getElementById('msg-full-input')) document.getElementById('msg-full-input').placeholder = 'Yozilmoqda...';
                     
                 } catch (err) {
                     alert("Mikrofonga ruxsat berilmadi.");
@@ -8672,7 +8715,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 voiceRecorder.stop();
                 micBtn.className = 'ri-mic-fill';
                 micBtn.style.color = 'var(--text-gray)';
-                document.getElementById('chat-input').placeholder = 'Xabar yozing...';
+                if(document.getElementById('chat-input')) document.getElementById('chat-input').placeholder = 'Xabar yozing...';
+                if(document.getElementById('msg-full-input')) document.getElementById('msg-full-input').placeholder = 'Xabar yozing...';
             }
         }
 
@@ -8723,7 +8767,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     // UI Update
                     btn.className = 'ri-stop-circle-fill';
                     btn.style.color = '#ef4444';
-                    document.getElementById('chat-input').placeholder = 'Video yozilmoqda...';
+                    if(document.getElementById('chat-input')) document.getElementById('chat-input').placeholder = 'Video yozilmoqda...';
+                    if(document.getElementById('msg-full-input')) document.getElementById('msg-full-input').placeholder = 'Video yozilmoqda...';
                     
                 } catch (err) {
                     alert("Kameraga ruxsat berilmadi.");
@@ -8732,7 +8777,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 videoNoteRecorder.stop();
                 btn.className = 'ri-record-circle-line';
                 btn.style.color = 'var(--text-gray)';
-                document.getElementById('chat-input').placeholder = 'Xabar yozing...';
+                if(document.getElementById('chat-input')) document.getElementById('chat-input').placeholder = 'Xabar yozing...';
+                if(document.getElementById('msg-full-input')) document.getElementById('msg-full-input').placeholder = 'Xabar yozing...';
             }
         }
 
@@ -9568,6 +9614,19 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 document.getElementById('login-username').value = rememberedUser;
                 document.getElementById('login-remember').checked = true;
                  }
+            
+            // Auto-login from persistence
+            const storedSession = localStorage.getItem('currentUser');
+            if (storedSession) {
+                try {
+                    const sessionUser = JSON.parse(storedSession);
+                    if (sessionUser && sessionUser.userId) {
+                        Object.assign(currentUser, sessionUser);
+                        completeLogin();
+                    }
+                } catch(e) { console.error("Session restore failed", e); }
+            }
+
             // Theme
             const savedTheme = localStorage.getItem('theme') || 'light';
             if (savedTheme) setTheme(savedTheme);
@@ -9588,10 +9647,47 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             setTimeout(() => { addNotification('Ali Valiyev', 'like', 'sizning postingizga like bosdi'); }, 5000);
             setTimeout(() => { addNotification('Malika', 'comment', 'sizning postingizga izoh qoldirdi: "Ajoyib!"'); }, 10000);
               startRealTimeNotifications();
-                 });
+            
+            // Tavsiya etilganlar (Agar yangi bo'lsa) - 3 soniyadan keyin (ma'lumotlar yuklangach)
+            setTimeout(() => {
+                if (currentUser && (!currentUser.following || currentUser.following.length === 0)) {
+                    const modal = document.getElementById('suggested-users-modal');
+                    const list = document.getElementById('suggested-users-list');
+                    // Serverdan kelgan real userlarni olish (o'zidan tashqari)
+                    const realSuggestions = allUsers.filter(u => u.userId !== currentUser.userId).slice(0, 5);
+                    
+                    if (modal && list && realSuggestions.length > 0) {
+                        list.innerHTML = realSuggestions.map(u => `
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="${u.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                    <div style="font-weight: 600;">${u.name}</div>
+                                </div>
+                                <button class="follow-btn" onclick="toggleFollow(this, '${u.id}')" style="font-size: 12px; padding: 4px 10px;">Obuna</button>
+                            </div>
+                        `).join('');
+                        modal.style.display = 'flex';
+                    }
+                }
+            }, 3000);
+        });
     </script>
         </body>
     </html>
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
             
             
     
