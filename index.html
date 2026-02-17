@@ -1886,17 +1886,6 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
             .modal-body { flex: 1; overflow-y: auto; padding-bottom: 140px; }
             .modal-footer { position: sticky; bottom: 0; background: var(--card-bg); z-index: 10; padding-bottom: 20px; }
             .container { padding-bottom: 100px; } /* Bottom nav uchun joy */
-        }
-
-        /* Message Badge Style */
-        .msg-badge {
-            position: absolute; top: 5px; right: 5px;
-            background: #ef4444; color: white; font-size: 10px;
-            font-weight: bold; padding: 2px 5px; border-radius: 10px;
-            display: none; z-index: 10;
-            box-shadow: 0 0 0 2px var(--header-bg);
-            min-width: 18px; text-align: center;
-        }
             
             /* Stories (Horizontal Scroll) */
             .stories-container { 
@@ -1926,7 +1915,16 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
             
             /* Profile Page Mobile */
             .profile-header-card { margin-bottom: 8px; border-radius: 0; border: none; }
+        }
 
+        /* Message Badge Style */
+        .msg-badge {
+            position: absolute; top: 5px; right: 5px;
+            background: #ef4444; color: white; font-size: 10px;
+            font-weight: bold; padding: 2px 5px; border-radius: 10px;
+            display: none; z-index: 10;
+            box-shadow: 0 0 0 2px var(--header-bg);
+            min-width: 18px; text-align: center;
         }
 
         /* Like Animation */
@@ -4402,18 +4400,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 showToast('Foydalanuvchi topilmadi', 'error');
                 return;
             }
-            startChatWithUser(found);
-        }
-
-        function startChatWithUser(userObj) {
-            // Ensure messages view is visible and set active chat
-            activeChatUser = userObj;
-            activeChatUserId = userObj.userId || userObj.id || userObj.email || userObj.name;
-            switchTab('messages');
-            // Render a simple chat header and make message input focused
-            const header = document.getElementById('msg-active-header'); if (header) header.innerHTML = `<img src="${userObj.avatar}" style="width:32px;height:32px;border-radius:8px;margin-right:8px;"> <strong>${userObj.name}</strong>`;
-            const body = document.getElementById('msg-full-body'); if (body) body.innerHTML = `<div style="color:var(--text-gray); padding:12px;">Siz ${userObj.name} bilan suhbatni boshladingiz.</div>`;
-            setTimeout(()=>{ const input = document.getElementById('msg-full-input'); if (input) input.focus(); }, 200);
+            startChatWith(found.id || found.userId);
         }
 
         // --- UPLOAD / PROFILE PERSISTENCE HELPERS ---
@@ -6270,12 +6257,15 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
         function startChatFromProfile() {
             if(viewingUser) {
-                startChatWith(viewingUser.id);
+                startChatWith(viewingUser.id || viewingUser.userId);
             }
         }
 
         async function startChatWith(id) {
-            const user = allUsers.find(u => u.id == id || u.userId == id);
+            let user = allUsers.find(u => u.id == id || u.userId == id);
+            // Agar allUsers da topilmasa, savedAccounts dan qidirib ko'ramiz
+            if (!user) user = savedAccounts.find(u => u.id == id || u.userId == id);
+            
             if(user) {
                 activeChatUser = user;
                 activeChatUserId = user.userId || user.id;
