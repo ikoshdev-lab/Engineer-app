@@ -9,6 +9,9 @@ const multer = require('multer'); // Fayl yuklash uchun
 const fs = require('fs');
 const os = require('os');
 
+// Real-time user-socket mapping
+const userSockets = new Map(); // Maps userId (email) to socket.id
+
 // Ilovani sozlash
 const app = express();
 const server = http.createServer(app); // Socket.io uchun http server kerak
@@ -350,6 +353,34 @@ io.on('connection', (socket) => {
   // Chat xabarlari va boshqa real-vaqt hodisalari shu yerda qoladi
   socket.on('join', (userId) => {
       socket.join(userId);
+      userSockets.set(userId, socket.id);
+      console.log(`User ${userId} joined with socket ${socket.id}`);
+      // Boshqa foydalanuvchilarga online statusini yuborish
+      socket.broadcast.emit('user_status', { userId: userId, isOnline: true });
+  });
+
+  // --- WebRTC Signaling ---
+  socket.on('call_user', (data) => {
+      const recipientSocketId = userSockets.get(data.to);
+      if (recipientSocketId) {
+          console.log(`Forwarding call from ${data.from} to ${data.to}`);
+          io.to(recipientSocketId).emit('call_made', {
+              offer: data.offer,
+              from: data.from,
+              socket: socket.id // Caller's socket ID
+          });
+      } else {
+          console.log(`User ${data.to} is not online.`);
+          // Optionally, emit back to caller that user is offline
+      }
+  });
+
+  socket.on('make_answer', (data) => {
+      io.to(data.to).emit('answer_made', { answer: data.answer, socket: socket.id });
+  });
+
+  socket.on('ice_candidate', (data) => {
+      io.to(data.to).emit('ice_candidate', { candidate: data.candidate });
   });
 
   // Xabar yuborish va bazaga saqlash
@@ -364,7 +395,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Foydalanuvchi chiqib ketdi');
+    console.log(`Foydalanuvchi ${socket.id} chiqib ketdi`);
+    for (const [userId, socketId] of userSockets.entries()) {
+        if (socketId === socket.id) {
+            userSockets.delete(userId);
+            // Boshqalarga offline statusini yuborish
+            socket.broadcast.emit('user_status', { userId: userId, isOnline: false, lastSeen: new Date() });
+            break;
+        }
+    }
   });
 });
 

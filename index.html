@@ -181,6 +181,15 @@
         body.ramadan-mode .verified-badge { color: var(--primary-color); }
         body.ramadan-mode .ph-avatar-wrapper.has-story::before { background: linear-gradient(45deg, #fde047, #facc15, #eab308, #ca8a04, #a16207) border-box; }
 
+        /* Ramadan Login Page */
+        body.ramadan-mode .login-page {
+            background: #0c1427;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23fde047' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),
+                radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        }
+        body.ramadan-mode .login-footer a { color: var(--primary-color); }
+        body.ramadan-mode .social-btn:hover { background: rgba(253, 224, 71, 0.1); border-color: rgba(253, 224, 71, 0.2); }
+
         /* Ramadan Lanterns */
         .lantern {
             position: fixed; top: -20px; width: 50px; height: 80px;
@@ -6025,18 +6034,20 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const lowerQ = query.toLowerCase();
 
             // Odamlar
-            const people = allUsers.filter(u => u.name.toLowerCase().includes(lowerQ) || (u.headline && u.headline.toLowerCase().includes(lowerQ)));
+            const people = allUsers.filter(u => u.userId !== currentUser.userId && (u.name.toLowerCase().includes(lowerQ) || (u.headline && u.headline.toLowerCase().includes(lowerQ))));
             if (people.length > 0) {
                 container.innerHTML += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Odamlar</h3>`;
                 people.forEach(p => {
+                    const isFollowing = currentUser.following && currentUser.following.includes(p._id);
                     container.innerHTML += `
-                        <div class="follow-item" onclick="viewUserProfile('${p.id}')">
-                            <img src="${p.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" onclick="viewUserProfile('${p.id}')"> 
-                            <div style="flex:1; margin-left: 10px;" onclick="viewUserProfile('${p.id}')">
+                        <div class="follow-item" onclick="viewUserProfile('${p._id || p.id}')">
+                            <img src="${p.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"> 
+                            <div style="flex:1; margin-left: 10px;">
                                 <b>${p.name}</b><br><span style="font-size:12px">${p.headline || ''}</span>
                             </div>
-                            <button onclick="startChatWith('${p.id}')" style="margin-right:5px; color:var(--primary-color); border:none; background:none;"><i class="ri-message-2-fill" style="font-size: 20px;"></i></button>
-                            <button class="follow-btn" onclick="toggleFollow(this, '${p.id}')" style="font-size: 12px; padding: 4px 10px;">+ Obuna</button>
+                            <button onclick="startChatWith('${p.userId || p.id}'); event.stopPropagation();" title="Xabar" style="background:none;border:none;font-size:20px;color:var(--text-gray);cursor:pointer;"><i class="ri-message-2-line"></i></button>
+                            <button onclick="startVideoCallWith('${p.userId || p.id}'); event.stopPropagation();" title="Video qo'ng'iroq" style="background:none;border:none;font-size:20px;color:var(--text-gray);cursor:pointer;"><i class="ri-vidicon-line"></i></button>
+                            <button class="follow-btn" onclick="toggleFollow(this, '${p._id || p.id}')" style="font-size: 12px; padding: 4px 10px;">${isFollowing ? 'Bekor qilish' : '+ Obuna'}</button>
                         </div>
                     `;
                 });
@@ -6081,7 +6092,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             // Xabar yozish tugmasi (faqat boshqalar uchun)
             if(document.getElementById('btn-msg-profile')) document.getElementById('btn-msg-profile').style.display = isMe ? 'none' : 'inline-flex';
 
-            // Header ma'lumotlarini yangilash
+            // Header ma'lumotlarini yangilash (Xatolik tuzatildi: innerHTML o'rniga textContent)
             document.getElementById('ph-name').textContent = user.name;
             document.getElementById('ph-headline').textContent = user.headline;
             
@@ -6107,7 +6118,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             
             // Premium Badge in Profile Header
             if (user.isPremium) {
-                document.getElementById('ph-name').innerHTML += ' <i class="ri-verified-badge-fill verified-badge" style="font-size: 24px;"></i>';
+                document.getElementById('ph-name').innerHTML = user.name + ' <i class="ri-verified-badge-fill verified-badge" style="font-size: 24px;"></i>';
                 // Sidebar update
                 if(isMe) document.getElementById('current-user-name').innerHTML = user.name + ' <i class="ri-verified-badge-fill verified-badge"></i>';
             }
@@ -6733,69 +6744,46 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         // Obuna bo'lish (Follow)
-        async function toggleFollow(btn, encodedId) {
+        async function toggleFollow(btn, targetUserId) {
             event.stopPropagation(); // Prevent card click
-            const id = decodeURIComponent(encodedId);
-            let targetUser = allUsers.find(u => u.id == id || u.userId == id);
-            
-            // Agar user topilmasa (masalan, tavsiya etilganlardan)
-            if (!targetUser && btn.closest('.follow-item')) {
-                // Mock user yaratish
-                const name = btn.closest('.follow-item').querySelector('div > div').innerText;
-                targetUser = { id: id, name: name, followers: 0 };
+            if (!currentUser || !currentUser._id) {
+                showToast("Obuna bo'lish uchun tizimga kiring.", "error");
+                return;
             }
 
-            if (btn.innerText.includes('Ulanish')) {
-                btn.innerText = 'So\'rov yuborildi';
-                btn.style.background = 'var(--bg-color)';
-                btn.style.color = 'var(--text-gray)';
-                btn.style.border = '1px solid var(--border-color)';
-                
-                // Add to following list
-                if(!currentUser.followingUsers) currentUser.followingUsers = [];
-                currentUser.followingUsers.push(id);
-                
-                currentUser.following = (currentUser.following || 0) + 1;
-                if(targetUser) targetUser.followers = (targetUser.followers || 0) + 1;
-                
-                // Serverga yuborish
-                try {
-                    await fetch('/api/users/follow', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ currentUserId: currentUser._id, targetUserId: id })
-                    });
-                } catch(e) { console.error("Follow error", e); }
+            btn.disabled = true; // Prevent double-clicking
 
-            } else {
-                btn.innerText = 'Ulanish';
-                btn.style.background = 'transparent';
-                btn.style.color = 'var(--primary-color)';
-                btn.style.border = '1px solid var(--primary-color)';
-                
-                // Remove from following list
-                if(currentUser.followingUsers) currentUser.followingUsers = currentUser.followingUsers.filter(uid => uid !== id);
-                
-                if(currentUser.following > 0) currentUser.following--;
-                if(targetUser && targetUser.followers > 0) targetUser.followers--;
-                
-                // Serverga yuborish (Unfollow)
-                try {
-                    await fetch('/api/users/follow', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ currentUserId: currentUser._id, targetUserId: id })
-                    });
-                } catch(e) { console.error("Unfollow error", e); }
+            try {
+                const res = await fetch('/api/users/follow', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ currentUserId: currentUser._id, targetUserId: targetUserId })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // Update local currentUser object
+                    if (data.isFollowing) {
+                        if (!currentUser.following.includes(targetUserId)) currentUser.following.push(targetUserId);
+                        btn.innerText = 'Bekor qilish';
+                        showToast("Obuna bo'ldingiz!", 'success');
+                    } else {
+                        currentUser.following = currentUser.following.filter(id => id !== targetUserId);
+                        btn.innerText = '+ Obuna';
+                        showToast("Obuna bekor qilindi.", 'info');
+                    }
+                    // Update local storage and UI
+                    saveAccount(currentUser);
+                    updateProfileUI();
+                } else {
+                    showToast(data.error || "Amalni bajarishda xatolik.", "error");
+                }
+            } catch (e) {
+                console.error("Follow/Unfollow error:", e);
+                showToast("Server bilan bog'lanishda xatolik.", "error");
+            } finally {
+                btn.disabled = false;
             }
-            
-            // Persist changes
-            saveAccount(currentUser);
-            saveUserProfileToServer(); // Serverga saqlash
-            localStorage.setItem('allUsers', JSON.stringify(allUsers));
-            
-            // Update profile view if open
-            if (document.getElementById('profile-view').style.display === 'block') updateProfileUI();
         }
 
         // Postni saqlash/o'chirish
@@ -8842,20 +8830,29 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // --- WEBRTC VIDEO CALL SYSTEM (Tab-to-Tab) ---
         let peerConnection;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        let remoteSocketId = null;
 
         // Socket orqali WebRTC signallari
         if (socket) {
             socket.on('call_made', async data => {
-                // Qo'ng'iroq kelganda
-                if (!peerConnection) createPeerConnection();
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(new RTCSessionDescription(answer));
-                
-                socket.emit('make_answer', {
-                    answer: answer,
-                    to: data.socket
-                });
+                const caller = allUsers.find(u => u.userId === data.from);
+                const callerName = caller ? caller.name : 'Noma\'lum';
+                if (confirm(`${callerName} sizga video qo'ng'iroq qilmoqda. Qabul qilasizmi?`)) {
+                    remoteSocketId = data.socket;
+                    await startVideoCall(null, false); // Qo'ng'iroqni qabul qilish
+                    
+                    if (!peerConnection) return;
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(new RTCSessionDescription(answer));
+                    
+                    socket.emit('make_answer', {
+                        answer: answer,
+                        to: data.socket
+                    });
+                } else {
+                    // Decline call (optional)
+                }
             });
 
             socket.on('answer_made', async data => {
@@ -8863,8 +8860,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             });
 
             socket.on('ice_candidate', async data => {
-                if (data.candidate) {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                if (peerConnection && data.candidate) {
+                    try {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    } catch (e) {
+                        console.error('Error adding received ice candidate', e);
+                    }
                 }
             });
         }
@@ -8872,10 +8873,10 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         function createPeerConnection() {
             peerConnection = new RTCPeerConnection(rtcConfig);
             peerConnection.onicecandidate = (e) => {
-                if (e.candidate && activeChatUser) {
+                if (e.candidate && (remoteSocketId || (activeChatUser && userSockets.get(activeChatUser.userId)))) {
                     socket.emit('ice_candidate', {
                         candidate: e.candidate,
-                        to: activeChatUser.socketId // Bu yerda socket ID kerak bo'ladi, serverdan olish kerak
+                        to: remoteSocketId || userSockets.get(activeChatUser.userId)
                     });
                 }
             };
@@ -8906,31 +8907,35 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         // --- VIDEO CALL SYSTEM ---
-        async function startVideoCall(e) {
+        async function startVideoCall(e, createOffer = true) {
             if(e) e.stopPropagation();
             
             // Open Modal
             document.getElementById('video-call-modal').style.display = 'flex';
             
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                callStream = stream;
+                if (!callStream) {
+                    callStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                }
                 
                 const localVideo = document.getElementById('local-video-call');
-                localVideo.srcObject = stream;
+                localVideo.srcObject = callStream;
                 
                 // Start WebRTC
-                createPeerConnection();
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
+                if (!peerConnection) createPeerConnection();
                 
-                // Serverga offer yuborish
-                if (socket && activeChatUser) {
-                    socket.emit('call_user', {
-                        offer: offer,
-                        to: activeChatUser.userId, // User ID orqali topamiz
-                        from: currentUser.userId
-                    });
+                if (createOffer) {
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    
+                    // Serverga offer yuborish
+                    if (socket && activeChatUser) {
+                        socket.emit('call_user', {
+                            offer: offer,
+                            to: activeChatUser.userId,
+                            from: currentUser.userId
+                        });
+                    }
                 }
 
                 // Start Timer
