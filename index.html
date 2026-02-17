@@ -209,20 +209,6 @@
             transition: opacity 0.5s ease-out;
         }
         
-        /* Scrollbar yashirish (Mobil uchun chiroyli ko'rinish) */
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
-        
-        /* Mobile Profile Fixes */
-        @media (max-width: 600px) {
-            .profile-stats-row { flex-wrap: wrap; gap: 10px; justify-content: center; }
-        }
-
-        /* Mobile Profile Fixes */
-        @media (max-width: 600px) {
-            .profile-stats-row { flex-wrap: wrap; gap: 10px; justify-content: center; }
-            .p-stat-item { min-width: 80px; margin-bottom: 10px; }
-        }
-
         #loading-screen.hidden {
             opacity: 0;
             pointer-events: none;
@@ -1941,18 +1927,6 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
             /* Profile Page Mobile */
             .profile-header-card { margin-bottom: 8px; border-radius: 0; border: none; }
 
-            /* Full Screen Modal on Mobile */
-            .modal {
-                width: 100%;
-                height: 100%;
-                max-width: none;
-                border-radius: 0;
-                display: flex;
-                flex-direction: column;
-            }
-            .modal-body { flex: 1; overflow-y: auto; }
-            .modal-footer { margin-top: auto; padding-top: 15px; border-top: 1px solid var(--border-color); }
-            .modal-overlay { align-items: flex-start; }
         }
 
         /* Like Animation */
@@ -2994,19 +2968,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             <div id="messages-view" style="display: none;">
                 <div class="msg-container">
                     <div class="msg-sidebar">
-                        <div class="msg-header" style="justify-content: space-between;">
-                            <span>Xabarlar</span>
-                            <i class="ri-group-line" style="cursor: pointer; color: var(--primary-color);" onclick="createGroupChat()" title="Guruh yaratish"></i>
-                        </div>
                         <div class="msg-search">
                             <input type="text" placeholder="Qidirish..." style="width: 100%; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px;" oninput="filterMessages(this.value)">
                         </div>
                         <div class="msg-list" id="msg-contacts-list">
                             <!-- Contacts rendered by JS -->
                         </div>
-                    </div>
-                    <div class="msg-content">
-                        <div class="msg-header" id="msg-active-header"></div>
                     </div>
                     <div class="msg-content">
                         <div class="msg-header" id="msg-active-header"></div>
@@ -3038,7 +3005,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 <div class="profile-header-card">
                     <div class="ph-cover" id="ph-cover">
                         <!-- Single cover-change button to avoid overlap -->
-                        <button onclick="document.getElementById('cover-file-input').click()" style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: 0.2s;"><i class="ri-camera-fill"></i> Fonni o'zgartirish</button>
                         <button id="btn-edit-cover" onclick="document.getElementById('cover-file-input').click()" style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.5); color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: 0.2s;"><i class="ri-camera-fill"></i> Fonni o'zgartirish</button>
                     </div>
                     <div class="ph-content">
@@ -6675,7 +6641,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const desc = prompt("Loyiha haqida qisqacha:");
             const tagsInput = prompt("Texnologiyalar (vergul bilan ajrating):", "React, Node.js");
             
-            if (title && desc) {
                 const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : ['New'];
                 projects.unshift({ 
                     id: Date.now(), 
@@ -7928,8 +7893,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             document.getElementById('post-text-input').value = '';
             document.getElementById('post-file-input').value = '';
             document.getElementById('post-location-input').value = '';
-            document.getElementById('post-image-preview').style.display = 'none';
-            document.getElementById('post-image-preview').src = '';
+            document.getElementById('post-media-preview').innerHTML = '';
             
             // Reset Poll & Code
             document.getElementById('poll-creator').style.display = 'none';
@@ -8509,26 +8473,23 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         // --- THEME SYSTEM (Light, Dark, Matrix) ---
-        const themes = ['light', 'dark', 'matrix'];
         const themes = ['light', 'dark', 'matrix', 'ramadan'];
         
         function cycleTheme() {
             let currentTheme = localStorage.getItem('theme') || 'light';
             let nextIndex = (themes.indexOf(currentTheme) + 1) % themes.length;
             let nextTheme = themes[nextIndex];
-            setTheme(nextTheme);
+            setTheme(nextTheme, true); // Pass true to show toast on manual cycle
         }
 
         function addLanterns() {
             removeLanterns(); // Clear any existing ones first
             const container = document.createElement('div');
             container.id = 'lantern-container';
-            
             const lantern1 = document.createElement('div');
             lantern1.className = 'lantern';
             lantern1.style.left = '15%';
             lantern1.style.animationDelay = '0s';
-
             const lantern2 = document.createElement('div');
             lantern2.className = 'lantern';
             lantern2.style.left = '80%';
@@ -8544,17 +8505,18 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             if (container) container.remove();
         }
 
-        function setTheme(theme) {
-            document.body.classList.remove('dark-mode', 'matrix-mode');
+        function setTheme(theme, showWelcomeToast = false) {
             document.body.classList.remove('dark-mode', 'matrix-mode', 'ramadan-mode');
             if (theme === 'dark') document.body.classList.add('dark-mode');
             if (theme === 'matrix') document.body.classList.add('matrix-mode');
-            if (theme === 'ramadan') { document.body.classList.add('ramadan-mode'); addLanterns(); showToast("Ramazon Muborak! 🌙", 'success'); } 
+            if (theme === 'ramadan') { 
+                document.body.classList.add('ramadan-mode'); 
+                addLanterns(); 
+                if (showWelcomeToast) showToast("Ramazon Muborak! 🌙", 'success'); 
+            } 
             else { removeLanterns(); }
             
             localStorage.setItem('theme', theme);
-            
-            const iconClass = theme === 'light' ? 'ri-sun-line' : (theme === 'dark' ? 'ri-moon-line' : 'ri-terminal-box-line');
             const iconClass = theme === 'light' ? 'ri-sun-line' : (theme === 'dark' ? 'ri-moon-line' : (theme === 'ramadan' ? 'ri-moon-clear-fill' : 'ri-terminal-box-line'));
             const updateIcon = (id) => { const el = document.getElementById(id); if(el) el.className = iconClass; };
             
@@ -9668,7 +9630,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         .section-title { font-size: 14px; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid #3498db; padding-bottom: 5px; margin-bottom: 15px; color: #3498db; letter-spacing: 1px; }
                         .item { margin-bottom: 15px; }
                         .item-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; }
-                        .item-sub { font-size: 14px; color: #7f8c8d; font-style: italic; }
                         .skills { display: flex; flex-wrap: wrap; gap: 8px; }
                         .skill { background: #ecf0f1; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: 500; color: #2c3e50; }
                     </style>
@@ -9682,7 +9643,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     </div>
                     <div class="section">
                         <div class="section-title">Ko'nikmalar</div>
-                        <div class="skills">${currentUser.skills.map(s => `<span class="skill">${s}</span>`).join('')}</div>
                         <div class="skills">${currentUser.skills.map(s => `<span class="skill">${typeof s === 'object' ? s.name : s}</span>`).join('')}</div>
                     </div>
                     <div class="section">
@@ -9985,12 +9945,9 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
             // Theme
             const savedTheme = localStorage.getItem('theme') || 'light';
-            if (savedTheme) setTheme(savedTheme);
-            if (savedTheme) {
-                // Set theme without toast on initial load
-                setTheme(savedTheme);
-                if (savedTheme === 'ramadan') showToast("Ramazon Muborak! 🌙", 'success');
-            }
+            // Set theme without toast on initial load, but show for Ramadan
+            setTheme(savedTheme, savedTheme === 'ramadan');
+
             // Snow
             const savedSnow = localStorage.getItem('snowEffect') === 'true';
             // ...
