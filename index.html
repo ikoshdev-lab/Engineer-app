@@ -1814,7 +1814,6 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
         @media (max-width: 768px) {
             /* Container & Layout */
             .container { padding: 0; margin-top: 0; gap: 0; display: block; }
-            body { padding-top: 55px; padding-bottom: 120px; background: #f1f5f9; }
             body { padding-top: 55px; padding-bottom: 140px; background: #f1f5f9; }
             
             /* Cards */
@@ -1857,7 +1856,6 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
                 display: flex;
                 flex-direction: column;
             }
-            .modal-body { flex: 1; overflow-y: auto; padding-bottom: 120px; }
             .modal-body { flex: 1; overflow-y: auto; padding-bottom: 140px; }
             .modal-footer { position: sticky; bottom: 0; background: var(--card-bg); z-index: 10; padding-bottom: 20px; }
             .container { padding-bottom: 100px; } /* Bottom nav uchun joy */
@@ -6268,7 +6266,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             }
         }
 
-        function startChatWith(id) {
         async function startChatWith(id) {
             const user = allUsers.find(u => u.id == id || u.userId == id);
             if(user) {
@@ -6895,7 +6892,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     
                 } catch (error) {
                     console.error("Kameraga ulanishda xatolik:", error);
-                    alert("Kameraga ruxsat berilmadi yoki xavfsiz ulanish (HTTPS) yo'q. Iltimos, brauzer ruxsatlarini tekshiring.");
                     alert("Kameraga ulanib bo'lmadi. Iltimos, brauzer ruxsatlarini tekshiring va HTTPS aloqasi borligiga ishonch hosil qiling.");
                 }
             } else {
