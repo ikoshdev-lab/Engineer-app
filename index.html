@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Engineer App | Dasturchilar uchun Tarmoq | O'zbekiston IT</title>
+    <title>Engineer-app</title>
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="Engineer App - O'zbekiston IT mutaxassislari, dasturchilar va muhandislar uchun professional tarmoq. Ish topish, loyihalar va tajriba almashish platformasi.">
@@ -33,6 +33,7 @@
 
     <!-- Sayt Logosi (Favicon) -->
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1005/1005141.png" type="image/png">
+    <link rel="manifest" href="manifest.json">
     <!-- Ikonkalar uchun RemixIcon kutubxonasini ulaymiz (CDN) -->
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <!-- Google Fonts: Inter (Zamonaviy shrift) -->
@@ -115,6 +116,19 @@
         body.dark-mode .exp-logo { background: #334155; color: white; }
         body.dark-mode .story-card .add-story { background: #1e293b; }
         body.dark-mode .msg-body { background: #0f172a; }
+
+        /* Story Ring Animation (Instagram Style) */
+        @keyframes story-spin { 100% { transform: rotate(360deg); } }
+        .ph-avatar-wrapper.has-story::before {
+            content: ''; position: absolute; top: -5px; left: -5px; right: -5px; bottom: -5px;
+            border-radius: 50%; border: 2px solid transparent;
+            background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888) border-box;
+            -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            animation: story-spin 4s linear infinite;
+            z-index: 1;
+        }
+        .ph-avatar-wrapper.has-story .ph-avatar { border: 3px solid var(--card-bg); position: relative; z-index: 2; }
 
         /* --- MATRIX MODE --- */
         body.matrix-mode {
@@ -754,7 +768,7 @@
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
             background: var(--card-bg); border-top: 1px solid var(--border-color);
-            z-index: 1001;
+            z-index: 3000;
         }
         body.dark-mode .bottom-nav {
             background: rgba(22, 27, 34, 0.9); /* Glassmorphism Dark */
@@ -1150,7 +1164,7 @@
             width: 100%;
             height: 60px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            z-index: 1001;
+            z-index: 3000;
             background: var(--header-bg);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
@@ -1801,6 +1815,7 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
             /* Container & Layout */
             .container { padding: 0; margin-top: 0; gap: 0; display: block; }
             body { padding-top: 55px; padding-bottom: 120px; background: #f1f5f9; }
+            body { padding-top: 55px; padding-bottom: 140px; background: #f1f5f9; }
             
             /* Cards */
             .card, .post, .story-card { 
@@ -1843,6 +1858,7 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
                 flex-direction: column;
             }
             .modal-body { flex: 1; overflow-y: auto; padding-bottom: 120px; }
+            .modal-body { flex: 1; overflow-y: auto; padding-bottom: 140px; }
             .modal-footer { position: sticky; bottom: 0; background: var(--card-bg); z-index: 10; padding-bottom: 20px; }
             .container { padding-bottom: 100px; } /* Bottom nav uchun joy */
         }
@@ -2274,6 +2290,23 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
                 <h2 class="modal-title" style="color: white; font-size: 24px;">Xush kelibsiz, <span id="welcome-user-name">Foydalanuvchi</span>!</h2>
                 <p style="color: #94a3b8; margin-top: 10px; margin-bottom: 30px; font-size: 15px;">Engineer App hamjamiyatiga muvaffaqiyatli qo'shildingiz.</p>
                 <button class="login-btn" style="width: 100%;" onclick="proceedToApp()">Boshlash</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUGGESTED USERS MODAL (Yangi) -->
+    <div class="modal-overlay" id="suggested-users-modal" style="z-index: 2700;">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <span class="modal-title">Tavsiya etilganlar</span>
+                <span class="modal-close" onclick="document.getElementById('suggested-users-modal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-gray); font-size: 13px; margin-bottom: 10px;">Sizga qiziq bo'lishi mumkin bo'lgan odamlar:</p>
+                <div id="suggested-users-list" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="login-btn" style="width: 100%;" onclick="document.getElementById('suggested-users-modal').style.display='none'">Boshlash</button>
             </div>
         </div>
     </div>
@@ -2912,6 +2945,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             <div id="search-view" style="display: none;">
                 <div class="card" style="padding: 15px;">
                     <h2 style="font-size: 18px; margin-bottom: 15px;">Qidiruv natijalari</h2>
+                    <input type="text" id="mobile-search-input" placeholder="Odamlar, ishlar, postlar..." class="modal-input" style="background: var(--bg-color); margin-bottom: 15px; width: 100%;" oninput="renderSearch(this.value)">
                     <div id="search-results"></div>
                 </div>
             </div>
@@ -3766,6 +3800,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             socket.on('hide_typing', (data) => {
                 if (activeChatUser && activeChatUser.userId === data.from) hideTyping();
             });
+
+            // Yangi bildirishnoma (Serverdan)
+            socket.on('notification', (data) => {
+                addNotification(data.user, data.type, data.message);
+                showToast(data.message, 'info');
+            });
         }
 
         // Helper for safe JSON parsing
@@ -3892,6 +3932,17 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 if(usersRes.ok) {
                     allUsers = await usersRes.json();
                     localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                    
+                    // Current Userni server bilan sinxronlash (Persistence)
+                    if (currentUser && currentUser.userId) {
+                        const freshUser = allUsers.find(u => u.userId === currentUser.userId || u.email === currentUser.userId);
+                        if (freshUser) {
+                            // Local sessionni saqlab qolgan holda ma'lumotlarni yangilash
+                            Object.assign(currentUser, freshUser);
+                            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                            updateProfileUI();
+                        }
+                    }
                 }
                 if(postsRes.ok) {
                     allPosts = await postsRes.json();
@@ -3903,6 +3954,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     stories = serverStories.map(s => ({
                         id: s._id,
                         user: s.author ? s.author.name : 'Foydalanuvchi',
+                        userId: s.author ? (s.author.email || s.author.userId) : null,
                         avatar: s.author ? s.author.avatar : 'https://via.placeholder.com/50',
                         img: s.image || s.video,
                         type: s.type,
@@ -3913,6 +3965,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
                 // Simulyatsiya qilingan kechikish (real hayotda fetch vaqti)
                 setTimeout(() => renderPosts(), 1500); 
+                checkSuggestedUsers(); // Ma'lumotlar yuklangandan keyin tavsiyalarni tekshirish
             } catch(e) { console.log("Serverga ulanib bo'lmadi"); }
         }
         
@@ -4145,10 +4198,9 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         async function handleStoryUpload(input) {
             const file = input.files[0];
             if (!file) return;
-            
             showToast("Story yuklanmoqda...", "info");
             
-            const uploadData = await uploadFileToServer(file);
+            const uploadData = await uploadFileToServer(file); // Serverga yuklash
             if (!uploadData) return;
 
             const type = file.type.startsWith('video') ? 'video' : 'image';
@@ -4159,7 +4211,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         authorId: currentUser._id,
-                        image: uploadData.url, // Server uses 'image' field for URL
+                        image: uploadData.url,
                         video: type === 'video' ? uploadData.url : null,
                         type: type
                     })
@@ -4171,7 +4223,59 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 }
             } catch (e) {
                 console.error(e);
-                showToast("Xatolik yuz berdi", "error");
+                // Fallback: Save locally if server fails
+                const newStory = {
+                    _id: Date.now(),
+                    author: {
+                        name: currentUser.name,
+                        userId: currentUser.userId,
+                        avatar: currentUser.avatar
+                    },
+                    image: uploadData ? uploadData.url : (type === 'image' ? URL.createObjectURL(file) : null),
+                    video: type === 'video' ? (uploadData ? uploadData.url : URL.createObjectURL(file)) : null,
+                    type: type,
+                    timestamp: Date.now()
+                };
+                
+                // Add to local stories array
+                stories.unshift({
+                    id: newStory._id,
+                    user: newStory.author.name,
+                    userId: newStory.author.userId,
+                    avatar: newStory.author.avatar,
+                    img: newStory.image || newStory.video,
+                    type: newStory.type,
+                    timestamp: newStory.timestamp
+                });
+                
+                // Save to localStorage
+                const savedStories = safeJSONParse('localStories', []);
+                savedStories.unshift(newStory);
+                localStorage.setItem('localStories', JSON.stringify(savedStories));
+                
+                showToast("Story saqlandi (Lokal)!", "success");
+                renderStories();
+            }
+        }
+
+        // Load local stories on startup
+        function loadLocalStories() {
+            const savedStories = safeJSONParse('localStories', []);
+            if (savedStories.length > 0) {
+                const formatted = savedStories.map(s => ({
+                    id: s._id,
+                    user: s.author.name,
+                    userId: s.author.userId,
+                    avatar: s.author.avatar,
+                    img: s.image || s.video,
+                    type: s.type,
+                    timestamp: s.timestamp
+                }));
+                // Merge with existing stories, avoiding duplicates
+                formatted.forEach(fs => {
+                    if(!stories.find(ex => ex.id === fs.id)) stories.push(fs);
+                });
+                renderStories();
             }
         }
 
@@ -4181,6 +4285,10 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             if (event.key === 'Enter' || event.type === 'click') {
                 const el = document.getElementById('global-search') || document.getElementById('sidebar-search');
                 const q = el ? el.value.trim() : '';
+                // Sync with mobile search input
+                const mobileInput = document.getElementById('mobile-search-input');
+                if(mobileInput) mobileInput.value = q;
+                
                 switchTab('search');
                 renderSearch(q);
             }
@@ -4206,7 +4314,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         function openUserProfile(encodedId) {
             const id = decodeURIComponent(encodedId);
             // try to find in allUsers, savedAccounts, or currentUser
-            let found = allUsers.find(u => (u.id && String(u.id) === String(id)) || (u.userId && String(u.userId) === String(id)));
+            let found = allUsers.find(u => (u._id && String(u._id) === String(id)) || (u.id && String(u.id) === String(id)) || (u.userId && String(u.userId) === String(id)));
             if (!found) found = savedAccounts.find(u => (u.id && String(u.id) === String(id)) || (u.userId && String(u.userId) === String(id)));
             if (!found) {
                 // check currentUser
@@ -4243,8 +4351,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             // counts
             const postsCount = (allPosts || []).filter(p => p.author && (p.author.userId === user.userId || p.author.name === user.name)).length;
             document.getElementById('p-posts-count').textContent = postsCount;
-            document.getElementById('p-followers-count').textContent = user.followers || 0;
-            document.getElementById('p-following-count').textContent = user.following || 0;
+            
+            // Fix for Array vs Number (Real Backend Data)
+            const followersCount = Array.isArray(user.followers) ? user.followers.length : (user.followers || 0);
+            const followingCount = Array.isArray(user.following) ? user.following.length : (user.following || 0);
+            document.getElementById('p-followers-count').textContent = followersCount;
+            document.getElementById('p-following-count').textContent = followingCount;
             // cover
             const phCover = document.getElementById('ph-cover');
             if (user.coverPhoto) {
@@ -6117,6 +6229,24 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             // Profil rasmlarini yangilash
             document.querySelectorAll('.ph-avatar').forEach(img => img.src = user.avatar);
 
+            // Story Ring Logic (Instagram Style)
+            const userStories = stories.filter(s => (s.userId && s.userId === user.userId) || (!s.userId && s.user === user.name));
+            const avatarWrapper = document.querySelector('.ph-avatar-wrapper');
+            
+            if (userStories.length > 0 && avatarWrapper) {
+                avatarWrapper.classList.add('has-story');
+                avatarWrapper.onclick = (e) => {
+                    // Agar edit tugmasi bosilmasa, storyni ochish
+                    if(e.target.id !== 'btn-edit-avatar' && !e.target.closest('#btn-edit-avatar')) {
+                        const storyIdx = stories.indexOf(userStories[0]);
+                        if(storyIdx !== -1) openStoryViewer(storyIdx);
+                    }
+                };
+            } else if (avatarWrapper) {
+                avatarWrapper.classList.remove('has-story');
+                avatarWrapper.onclick = null;
+            }
+
             // Load GitHub Repos
             if(user.githubUsername) loadGitHubRepos(user.githubUsername);
             
@@ -6139,6 +6269,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         function startChatWith(id) {
+        async function startChatWith(id) {
             const user = allUsers.find(u => u.id == id || u.userId == id);
             if(user) {
                 activeChatUser = user;
@@ -6152,6 +6283,33 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
                 // Statusni yangilash
                 updateChatHeaderStatus(user.isOnline, user.lastSeen);
+
+                // Serverdan xabarlarni yuklash
+                try {
+                    const res = await fetch(`/api/messages/${currentUser.userId}/${activeChatUserId}`);
+                    if (res.ok) {
+                        const serverMsgs = await res.json();
+                        chatHistory = serverMsgs.map(m => ({
+                            type: m.from === currentUser.userId ? 'me' : 'other',
+                            text: m.text,
+                            image: m.image,
+                            audio: m.audio,
+                            videoNote: m.videoNote,
+                            file: m.file,
+                            time: new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}),
+                            status: m.read ? 'read' : 'sent'
+                        }));
+                    } else {
+                        // Fallback to local
+                        const chatId = getChatId(currentUser.userId, activeChatUserId);
+                        chatHistory = safeJSONParse('chat_' + chatId, []);
+                    }
+                } catch (e) {
+                    console.error("Chat history load error:", e);
+                    const chatId = getChatId(currentUser.userId, activeChatUserId);
+                    chatHistory = safeJSONParse('chat_' + chatId, []);
+                }
+                renderChat();
             }
         }
 
@@ -6554,7 +6712,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         // Obuna bo'lish (Follow)
-        function toggleFollow(btn, encodedId) {
+        async function toggleFollow(btn, encodedId) {
             event.stopPropagation(); // Prevent card click
             const id = decodeURIComponent(encodedId);
             let targetUser = allUsers.find(u => u.id == id || u.userId == id);
@@ -6578,6 +6736,16 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 
                 currentUser.following = (currentUser.following || 0) + 1;
                 if(targetUser) targetUser.followers = (targetUser.followers || 0) + 1;
+                
+                // Serverga yuborish
+                try {
+                    await fetch('/api/users/follow', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ currentUserId: currentUser._id, targetUserId: id })
+                    });
+                } catch(e) { console.error("Follow error", e); }
+
             } else {
                 btn.innerText = 'Ulanish';
                 btn.style.background = 'transparent';
@@ -6589,6 +6757,15 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 
                 if(currentUser.following > 0) currentUser.following--;
                 if(targetUser && targetUser.followers > 0) targetUser.followers--;
+                
+                // Serverga yuborish (Unfollow)
+                try {
+                    await fetch('/api/users/follow', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ currentUserId: currentUser._id, targetUserId: id })
+                    });
+                } catch(e) { console.error("Unfollow error", e); }
             }
             
             // Persist changes
@@ -6655,6 +6832,15 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // Jonli efir boshlash
         async function startLiveStream() {
             if (!isLive) {
+                // HTTPS tekshiruvi (Kamera ishlashi uchun)
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    alert("Diqqat: Kamera ishlashi uchun sayt HTTPS protokoli orqali yoki localhost da ishlashi kerak. Hozirgi ulanish xavfsiz emas.");
+                    return;
+                }
+
+                // HTTPS check removed to allow trying on all environments, 
+                // though browser will still block if insecure.
+
                 try {
                     // Kamera va mikrofonga ruxsat so'rash
                     // Telefonda old kamerani olish (facingMode: 'user')
@@ -6709,7 +6895,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     
                 } catch (error) {
                     console.error("Kameraga ulanishda xatolik:", error);
-                    showToast("Kameraga ulanib bo'lmadi.", 'error');
+                    alert("Kameraga ruxsat berilmadi yoki xavfsiz ulanish (HTTPS) yo'q. Iltimos, brauzer ruxsatlarini tekshiring.");
+                    alert("Kameraga ulanib bo'lmadi. Iltimos, brauzer ruxsatlarini tekshiring va HTTPS aloqasi borligiga ishonch hosil qiling.");
                 }
             } else {
                 // Efirni to'xtatish
@@ -7099,12 +7286,53 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         
                         startConfetti();
                         document.getElementById('welcome-user-name').textContent = user.name;
-                        document.getElementById('welcome-modal').style.display = 'flex';
+                        document.getElementById('welcome-modal').style.display = 'flex'; // Welcome modal ochiladi, keyin suggested users
                     } else {
                         showToast(data.message, 'error');
                     }
                 } catch (e) {
-                    showToast("Serverga ulanishda xatolik", 'error');
+                    console.log("Server unavailable, creating local account...");
+                    
+                    // Fallback: Create Local Account
+                    const newUser = {
+                        _id: Date.now().toString(),
+                        userId: email, // Use email as ID for uniqueness
+                        name: name,
+                        email: email,
+                        username: username,
+                        password: password, // In real app, never store plain text!
+                        dob: dob,
+                        avatar: finalAvatarUrl,
+                        headline: "Yangi Foydalanuvchi",
+                        about: "Men Engineer App ning yangi a'zosiman.",
+                        followers: 0,
+                        following: 0,
+                        isPremium: false,
+                        isMentor: false,
+                        xp: 0,
+                        level: 1,
+                        skills: [],
+                        experience: [],
+                        portfolio: [],
+                        education: [],
+                        achievements: []
+                    };
+
+                    // Save to allUsers in localStorage
+                    allUsers.push(newUser);
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                    
+                    // Auto Login
+                    Object.assign(currentUser, newUser);
+                    saveAccount(currentUser);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    startConfetti();
+                    document.getElementById('welcome-user-name').textContent = newUser.name;
+                    document.getElementById('welcome-modal').style.display = 'flex';
+                    
+                    // Trigger suggestions
+                    checkSuggestedUsers();
                 }
         }
 
@@ -7307,6 +7535,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         saveAccount(currentUser);
                         localStorage.setItem('currentUser', JSON.stringify(currentUser));
                         showToast("Xush kelibsiz, " + currentUser.name + "!", 'success');
+                        
                         completeLogin();
                         loadDataFromServer(); // Login bo'lganda ma'lumotlarni yuklash
                     } else {
@@ -7427,6 +7656,34 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             }
         }
 
+        // Tavsiya etilgan foydalanuvchilarni ko'rsatish
+        function checkSuggestedUsers() {
+            setTimeout(() => {
+                const followingCount = Array.isArray(currentUser.following) ? currentUser.following.length : (currentUser.following || 0);
+                // Agar yangi user bo'lsa (obunalari 0 bo'lsa)
+                if (followingCount === 0) {
+                    const modal = document.getElementById('suggested-users-modal');
+                    const list = document.getElementById('suggested-users-list');
+                    // O'zidan boshqa barcha userlarni ko'rsatish (Real odamlar)
+                    const realSuggestions = allUsers.filter(u => u.userId !== currentUser.userId).slice(0, 10);
+                    
+                    if (modal && list && realSuggestions.length > 0) {
+                        list.innerHTML = realSuggestions.map(u => `
+                            <div class="suggestion-card" style="display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid var(--border-color);">
+                                <img src="${u.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                <div style="flex:1;">
+                                    <div style="font-weight: 600;">${u.name}</div>
+                                    <div style="font-size: 12px; color: var(--text-gray);">${u.headline || 'Foydalanuvchi'}</div>
+                                </div>
+                                <button class="follow-btn" onclick="toggleFollow(this, '${u.id}')" style="font-size: 12px; padding: 4px 10px;">Obuna</button>
+                            </div>
+                        `).join('');
+                        modal.style.display = 'flex';
+                    }
+                }
+            }, 1500);
+        }
+
         // --- UNREAD MESSAGES BADGE ---
         let unreadMessagesCount = 0;
 
@@ -7508,6 +7765,32 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
                 // WebSocketni ishga tushirish
                 initWebSocket();
+                
+                // Yangi foydalanuvchilar uchun tavsiyalar (Real vaqtda tekshirish)
+                setTimeout(() => {
+                    const followingCount = Array.isArray(currentUser.following) ? currentUser.following.length : (currentUser.following || 0);
+                    if (followingCount === 0) {
+                        const modal = document.getElementById('suggested-users-modal');
+                        const list = document.getElementById('suggested-users-list');
+                        // O'zidan boshqa barcha userlarni ko'rsatish
+                        const realSuggestions = allUsers.filter(u => u.userId !== currentUser.userId).slice(0, 10);
+                        
+                        if (modal && list && realSuggestions.length > 0) {
+                            list.innerHTML = realSuggestions.map(u => `
+                                <div class="suggestion-card" style="display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid var(--border-color);">
+                                    <img src="${u.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                    <div style="flex:1;">
+                                        <div style="font-weight: 600;">${u.name}</div>
+                                        <div style="font-size: 12px; color: var(--text-gray);">${u.headline || 'Foydalanuvchi'}</div>
+                                    </div>
+                                    <button class="follow-btn" onclick="toggleFollow(this, '${u.id}')" style="font-size: 12px; padding: 4px 10px;">Obuna</button>
+                                </div>
+                            `).join('');
+                            modal.style.display = 'flex';
+                        }
+                    }
+                }, 1000);
+
             } catch (err) {
                 console.error("Critical Login Error:", err);
                 alert("Tizimga kirishda xatolik yuz berdi. Iltimos sahifani yangilang.");
@@ -8391,6 +8674,10 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             if (activeView) activeView.style.display = 'block';
 
             if (tab === 'jobs') renderJobs();
+            else if (tab === 'search') {
+                // Qidiruv sahifasiga o'tganda inputga fokus berish
+                setTimeout(() => { const inp = document.getElementById('mobile-search-input'); if(inp) inp.focus(); }, 100);
+            }
             else if (tab === 'network') renderNetwork();
             else if (tab === 'profile') renderProfile();
             else if (tab === 'messages') renderMessagesPage();
@@ -9602,6 +9889,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 renderGitHubWidget();
                 renderCalendar();
                 renderSavedAccounts();
+                loadLocalStories(); // Load locally saved stories
                 loadDataFromServer(); // Dastur ochilganda serverdan ma'lumot olish
                 if(typeof renderDailyTasks === 'function') renderDailyTasks();
             } catch (e) {
@@ -9647,29 +9935,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             setTimeout(() => { addNotification('Ali Valiyev', 'like', 'sizning postingizga like bosdi'); }, 5000);
             setTimeout(() => { addNotification('Malika', 'comment', 'sizning postingizga izoh qoldirdi: "Ajoyib!"'); }, 10000);
               startRealTimeNotifications();
-            
-            // Tavsiya etilganlar (Agar yangi bo'lsa) - 3 soniyadan keyin (ma'lumotlar yuklangach)
-            setTimeout(() => {
-                if (currentUser && (!currentUser.following || currentUser.following.length === 0)) {
-                    const modal = document.getElementById('suggested-users-modal');
-                    const list = document.getElementById('suggested-users-list');
-                    // Serverdan kelgan real userlarni olish (o'zidan tashqari)
-                    const realSuggestions = allUsers.filter(u => u.userId !== currentUser.userId).slice(0, 5);
-                    
-                    if (modal && list && realSuggestions.length > 0) {
-                        list.innerHTML = realSuggestions.map(u => `
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <img src="${u.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-                                    <div style="font-weight: 600;">${u.name}</div>
-                                </div>
-                                <button class="follow-btn" onclick="toggleFollow(this, '${u.id}')" style="font-size: 12px; padding: 4px 10px;">Obuna</button>
-                            </div>
-                        `).join('');
-                        modal.style.display = 'flex';
-                    }
-                }
-            }, 3000);
         });
     </script>
         </body>

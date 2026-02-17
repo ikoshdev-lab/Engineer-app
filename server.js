@@ -1,5 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -131,11 +132,12 @@ const Story = mongoose.model('Story', StorySchema);
 // 1. Ro'yxatdan o'tish
 app.post('/api/register', async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, password } = req.body;
         const existingUser = await User.findOne({ email });
         if (existingUser) return res.status(400).json({ success: false, message: "Bu email band." });
         
-        const newUser = new User(req.body);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ ...req.body, password: hashedPassword });
         await newUser.save();
         res.json({ success: true, user: newUser });
     } catch (err) {
@@ -147,9 +149,13 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({ email, password });
-        if (user) res.json({ success: true, user });
-        else res.status(401).json({ success: false, message: "Email yoki parol xato" });
+        const user = await User.findOne({ email });
+        if (!user) return res.status(401).json({ success: false, message: "Email yoki parol xato" });
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(401).json({ success: false, message: "Email yoki parol xato" });
+
+        res.json({ success: true, user });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -297,6 +303,14 @@ app.post('/api/users/follow', async (req, res) => {
         } else {
             currentUser.following.push(targetUserId);
             targetUser.followers.push(currentUserId);
+            
+            // Real vaqtda bildirishnoma yuborish (Socket.IO)
+            io.to(targetUser.email).emit('notification', {
+                type: 'connect',
+                message: `${currentUser.name} sizga obuna bo'ldi`,
+                user: currentUser.name,
+                time: 'Hozirgina'
+            });
         }
 
         await currentUser.save();
