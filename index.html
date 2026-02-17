@@ -151,6 +151,47 @@
         body.matrix-mode .chat-msg.me { background: #003b00; color: #00ff41; border: 1px solid #00ff41; }
         body.matrix-mode .chat-msg.other { background: #000; color: #00ff41; border: 1px solid #008f11; }
 
+        /* --- RAMADAN MODE --- */
+        body.ramadan-mode {
+            --primary-color: #fde047; /* Gold/Yellow */
+            --primary-gradient: linear-gradient(135deg, #fde047 0%, #facc15 100%);
+            --bg-color: #0c1427; /* Deep Night Blue */
+            --card-bg: rgba(17, 24, 39, 0.7); /* Dark Blue Glass */
+            --glass-border: 1px solid rgba(253, 224, 71, 0.2);
+            --text-dark: #f8fafc;     /* White/Light Gray */
+            --text-gray: #a1a1aa;     /* Lighter Gray */
+            --border-color: #374151;  /* Darker Border */
+            --header-bg: rgba(12, 20, 39, 0.85);
+            --shadow: 0 10px 25px -5px rgba(253, 224, 71, 0.1);
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23fde047' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),
+                radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            background-attachment: fixed;
+        }
+        body.ramadan-mode .card, body.ramadan-mode .post { border: var(--glass-border); }
+        body.ramadan-mode .navbar .search-box { background: rgba(253, 224, 71, 0.1); }
+        body.ramadan-mode .nav-item:hover { background: rgba(253, 224, 71, 0.1); color: var(--primary-color); }
+        body.ramadan-mode .nav-item.active { background: var(--primary-gradient); color: #0c1427; box-shadow: 0 4px 12px rgba(253, 224, 71, 0.3); }
+        body.ramadan-mode .cp-btn:hover { background: rgba(253, 224, 71, 0.1); color: var(--primary-color); }
+        body.ramadan-mode .action-btn:hover { background: rgba(253, 224, 71, 0.1); color: var(--primary-color); }
+        body.ramadan-mode .login-card-container { background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(253, 224, 71, 0.2); }
+        body.ramadan-mode .login-btn { background: var(--primary-gradient); color: #0c1427; box-shadow: 0 4px 15px rgba(253, 224, 71, 0.3); }
+        body.ramadan-mode .login-btn:hover { box-shadow: 0 8px 25px rgba(253, 224, 71, 0.4); }
+        body.ramadan-mode .login-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(253, 224, 71, 0.15); }
+        body.ramadan-mode .topic-pill:hover, body.ramadan-mode .topic-pill.active { background: var(--primary-color); color: #0c1427; border-color: var(--primary-color); }
+        body.ramadan-mode .verified-badge { color: var(--primary-color); }
+        body.ramadan-mode .ph-avatar-wrapper.has-story::before { background: linear-gradient(45deg, #fde047, #facc15, #eab308, #ca8a04, #a16207) border-box; }
+
+        /* Ramadan Lanterns */
+        .lantern {
+            position: fixed; top: -20px; width: 50px; height: 80px;
+            background-image: url('https://www.freepnglogos.com/uploads/ramadan-lantern-png/ramadan-fanoos-lantern-free-png-and-vector-25.png');
+            background-size: contain; background-repeat: no-repeat;
+            animation: swing 5s ease-in-out infinite alternate;
+            transform-origin: top center; z-index: 101; /* Above navbar */
+            pointer-events: none; filter: drop-shadow(0 0 15px #fde047);
+        }
+        @keyframes swing { 0% { transform: rotate(5deg); } 100% { transform: rotate(-5deg); } }
+
         /* Loading Screen - TUZATILDI */
         #loading-screen {
             position: fixed; 
@@ -2072,6 +2113,7 @@ body.dark-mode .skeleton { background: linear-gradient(100deg, #334155 30%, #475
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') document.body.classList.add('dark-mode');
             else if (savedTheme === 'matrix') document.body.classList.add('matrix-mode');
+            else if (savedTheme === 'ramadan') document.body.classList.add('ramadan-mode');
         })();
     </script>
 <!-- LOADING SCREEN -->
@@ -8468,6 +8510,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
         // --- THEME SYSTEM (Light, Dark, Matrix) ---
         const themes = ['light', 'dark', 'matrix'];
+        const themes = ['light', 'dark', 'matrix', 'ramadan'];
         
         function cycleTheme() {
             let currentTheme = localStorage.getItem('theme') || 'light';
@@ -8476,14 +8519,43 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             setTheme(nextTheme);
         }
 
+        function addLanterns() {
+            removeLanterns(); // Clear any existing ones first
+            const container = document.createElement('div');
+            container.id = 'lantern-container';
+            
+            const lantern1 = document.createElement('div');
+            lantern1.className = 'lantern';
+            lantern1.style.left = '15%';
+            lantern1.style.animationDelay = '0s';
+
+            const lantern2 = document.createElement('div');
+            lantern2.className = 'lantern';
+            lantern2.style.left = '80%';
+            lantern2.style.animationDelay = '-2.5s'; // Out of sync
+
+            container.appendChild(lantern1);
+            container.appendChild(lantern2);
+            document.body.appendChild(container);
+        }
+
+        function removeLanterns() {
+            const container = document.getElementById('lantern-container');
+            if (container) container.remove();
+        }
+
         function setTheme(theme) {
             document.body.classList.remove('dark-mode', 'matrix-mode');
+            document.body.classList.remove('dark-mode', 'matrix-mode', 'ramadan-mode');
             if (theme === 'dark') document.body.classList.add('dark-mode');
             if (theme === 'matrix') document.body.classList.add('matrix-mode');
+            if (theme === 'ramadan') { document.body.classList.add('ramadan-mode'); addLanterns(); showToast("Ramazon Muborak! 🌙", 'success'); } 
+            else { removeLanterns(); }
             
             localStorage.setItem('theme', theme);
             
             const iconClass = theme === 'light' ? 'ri-sun-line' : (theme === 'dark' ? 'ri-moon-line' : 'ri-terminal-box-line');
+            const iconClass = theme === 'light' ? 'ri-sun-line' : (theme === 'dark' ? 'ri-moon-line' : (theme === 'ramadan' ? 'ri-moon-clear-fill' : 'ri-terminal-box-line'));
             const updateIcon = (id) => { const el = document.getElementById(id); if(el) el.className = iconClass; };
             
             updateIcon('theme-icon');
@@ -9914,6 +9986,11 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             // Theme
             const savedTheme = localStorage.getItem('theme') || 'light';
             if (savedTheme) setTheme(savedTheme);
+            if (savedTheme) {
+                // Set theme without toast on initial load
+                setTheme(savedTheme);
+                if (savedTheme === 'ramadan') showToast("Ramazon Muborak! 🌙", 'success');
+            }
             // Snow
             const savedSnow = localStorage.getItem('snowEffect') === 'true';
             // ...
