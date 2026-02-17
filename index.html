@@ -3922,6 +3922,32 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         let allUsers = safeJSONParse('allUsers', [...networkUsers]);
         let blockedUsers = safeJSONParse('blockedUsers', []);
 
+        // Skeleton Loader Render Function
+        function renderSkeletonFeed(containerId, count = 3) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            let html = '';
+            for(let i=0; i<count; i++) {
+                html += `
+                    <div class="card post skeleton">
+                        <div class="post-header">
+                            <div class="skeleton-avatar"></div>
+                            <div style="flex:1; margin-left:10px;">
+                                <div class="skeleton-text" style="width:50%"></div>
+                                <div class="skeleton-text" style="width:30%"></div>
+                            </div>
+                        </div>
+                        <div class="post-content">
+                            <div class="skeleton-text" style="width:90%"></div>
+                            <div class="skeleton-text" style="width:80%"></div>
+                            <div class="skeleton-img"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
         
         // Serverdan ma'lumotlarni yuklash
         async function loadDataFromServer() {
@@ -4373,7 +4399,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             if (msgBtn) {
                 if (user.userId && user.userId !== currentUser.userId) {
                     msgBtn.style.display = 'inline-flex';
-                    msgBtn.onclick = () => { startChatWithUser(user); };
+            msgBtn.onclick = () => { startChatWith(user.id || user.userId); };
                 } else {
                     msgBtn.style.display = 'none';
                 }
@@ -6631,6 +6657,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const desc = prompt("Loyiha haqida qisqacha:");
             const tagsInput = prompt("Texnologiyalar (vergul bilan ajrating):", "React, Node.js");
             
+            if (title && desc) {
                 const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : ['New'];
                 projects.unshift({ 
                     id: Date.now(), 
