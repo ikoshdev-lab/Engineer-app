@@ -6050,7 +6050,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
             // Odamlar
             const people = allUsers.filter(u => u.userId !== currentUser.userId && (u.name.toLowerCase().includes(lowerQ) || (u.headline && u.headline.toLowerCase().includes(lowerQ))));
-            const people = allUsers.filter(u => (u.userId !== currentUser.userId) && (u.name.toLowerCase().includes(lowerQ) || (u.headline && u.headline.toLowerCase().includes(lowerQ))));
             if (people.length > 0) {
                 container.innerHTML += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Odamlar</h3>`;
                 people.forEach(p => {
@@ -7976,7 +7975,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         // Postni saqlash
-        function savePost() {
+        async function savePost() {
             const text = document.getElementById('post-text-input').value;
             const location = document.getElementById('post-location-input').value;
             const previewContainer = document.getElementById('post-media-preview');
@@ -8026,22 +8025,26 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             };
             
             // Serverga saqlash
-            fetch('/api/posts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newPost)
-            });
-            
-            allPosts.unshift(newPost);
-            saveAllPostsToLocal();
-            // Local update is handled by socket 'new_post' event now
-            addXP(50); // XP qo'shish va serverga saqlash
-            renderPosts();
-            switchTab('home'); // Post qo'ygandan keyin Asosiy sahifaga o'tish
-            closePostModal();
-            
-            // Post Engagement Simulation
-            simulatePostEngagement(newPost.id);
+            try {
+                await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newPost)
+                });
+                // Success: Socket will handle the UI update via 'new_post' event
+                addXP(50); // XP qo'shish va serverga saqlash
+                switchTab('home'); // Post qo'ygandan keyin Asosiy sahifaga o'tish
+                closePostModal();
+                // Post Engagement Simulation
+                simulatePostEngagement(newPost.id);
+            } catch (e) {
+                console.error("Post save error:", e);
+                // Fallback for offline/error: Add locally
+                allPosts.unshift(newPost);
+                saveAllPostsToLocal();
+                renderPosts();
+                closePostModal();
+            }
         }
 
         function simulatePostEngagement(postId) {
@@ -8890,10 +8893,10 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         function createPeerConnection() {
             peerConnection = new RTCPeerConnection(rtcConfig);
             peerConnection.onicecandidate = (e) => {
-                if (e.candidate && (remoteSocketId || (activeChatUser && userSockets.get(activeChatUser.userId)))) {
+                if (e.candidate) {
                     socket.emit('ice_candidate', {
                         candidate: e.candidate,
-                        to: remoteSocketId || userSockets.get(activeChatUser.userId)
+                        to: remoteSocketId || (activeChatUser ? activeChatUser.userId : null)
                     });
                 }
             };
