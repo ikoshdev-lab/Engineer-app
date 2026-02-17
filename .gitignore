@@ -1,6 +1,6 @@
 node_modules/
-uploads/
 .env
+uploads/
 .DS_Store
 npm-debug.log
-*.log
+Thumbs.db

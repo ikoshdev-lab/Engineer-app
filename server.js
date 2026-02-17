@@ -338,6 +338,11 @@ app.get('/sitemap.xml', (req, res) => {
     res.sendFile(path.join(__dirname, 'sitemap.xml'));
 });
 
+// PWA Manifest fayli
+app.get('/manifest.json', (req, res) => {
+    res.sendFile(path.join(__dirname, 'manifest.json'));
+});
+
 // Socket.io ulanishini tinglash
 io.on('connection', (socket) => {
   console.log('Yangi foydalanuvchi ulandi ID:', socket.id);
