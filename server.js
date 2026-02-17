@@ -50,8 +50,35 @@ const upload = multer({ storage: storage });
 const mongoUrl = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/engineer-app';
 
 mongoose.connect(mongoUrl)
-  .then(() => console.log('MongoDB bazasiga muvaffaqiyatli ulandi!'))
+  .then(() => {
+      console.log('MongoDB bazasiga muvaffaqiyatli ulandi!');
+      createCeoAccount();
+  })
   .catch(err => console.error('MongoDB xatosi:', err));
+
+// CEO Account Creation
+async function createCeoAccount() {
+    try {
+        const ceoEmail = 'ceo@engineer.app';
+        const existingCeo = await User.findOne({ email: ceoEmail });
+        if (!existingCeo) {
+            const hashedPassword = await bcrypt.hash('admin123', 10);
+            const ceo = new User({
+                name: 'Ikromjon Islomov',
+                email: ceoEmail,
+                password: hashedPassword,
+                headline: 'CEO & Founder of Engineer App',
+                about: 'Engineer App asoschisi. Barchangizni platformamizda ko\'rib turganimdan xursandman!',
+                avatar: 'https://i.pravatar.cc/150?u=ceo',
+                isPremium: true
+            });
+            await ceo.save();
+            console.log('CEO account created');
+        }
+    } catch (err) {
+        console.error('CEO account error:', err);
+    }
+}
 
 // --- MONGODB SCHEMAS (Jadvallar) ---
 
@@ -142,6 +169,17 @@ app.post('/api/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = new User({ ...req.body, password: hashedPassword });
         await newUser.save();
+        
+        // Real-time update for other users
+        const userForClient = { 
+            ...newUser._doc, 
+            id: newUser._id, 
+            userId: newUser.email,
+            followersCount: 0,
+            followingCount: 0
+        };
+        io.emit('new_user', userForClient);
+
         res.json({ success: true, user: newUser });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -192,7 +230,23 @@ app.post('/api/posts', async (req, res) => {
     if (user) {
         const newPost = new Post({ ...postData, author: user._id });
         await newPost.save();
-        res.json(newPost);
+        
+        // Populate for client
+        const populatedPost = await Post.findById(newPost._id).populate('author');
+        const formattedPost = {
+            ...populatedPost._doc,
+            id: populatedPost._id,
+            time: new Date(populatedPost.timestamp).toLocaleString(),
+            author: {
+                name: populatedPost.author.name,
+                headline: populatedPost.author.headline,
+                avatar: populatedPost.author.avatar,
+                userId: populatedPost.author.email,
+                isVerified: populatedPost.author.isPremium
+            }
+        };
+        io.emit('new_post', formattedPost);
+        res.json(formattedPost);
     } else {
         res.status(404).json({ error: 'User not found' });
     }

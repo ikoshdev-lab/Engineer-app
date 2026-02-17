@@ -3819,6 +3819,21 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 addNotification(data.user, data.type, data.message);
                 showToast(data.message, 'info');
             });
+
+            // Yangi foydalanuvchi qo'shilganda
+            socket.on('new_user', (user) => {
+                // Ro'yxatga qo'shish
+                if (!allUsers.find(u => u.id === user.id)) {
+                    allUsers.push(user);
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                }
+            });
+
+            // Yangi post qo'shilganda
+            socket.on('new_post', (post) => {
+                allPosts.unshift(post);
+                renderPosts();
+            });
         }
 
         // Helper for safe JSON parsing
@@ -6035,6 +6050,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
             // Odamlar
             const people = allUsers.filter(u => u.userId !== currentUser.userId && (u.name.toLowerCase().includes(lowerQ) || (u.headline && u.headline.toLowerCase().includes(lowerQ))));
+            const people = allUsers.filter(u => (u.userId !== currentUser.userId) && (u.name.toLowerCase().includes(lowerQ) || (u.headline && u.headline.toLowerCase().includes(lowerQ))));
             if (people.length > 0) {
                 container.innerHTML += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Odamlar</h3>`;
                 people.forEach(p => {
@@ -8018,6 +8034,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             
             allPosts.unshift(newPost);
             saveAllPostsToLocal();
+            // Local update is handled by socket 'new_post' event now
             addXP(50); // XP qo'shish va serverga saqlash
             renderPosts();
             switchTab('home'); // Post qo'ygandan keyin Asosiy sahifaga o'tish
