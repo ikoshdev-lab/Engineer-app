@@ -531,7 +531,7 @@
         .story-progress { height: 100%; background: white; width: 0%; border-radius: 2px; }
 
         /* Video Call Modal */
-        .call-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.2); -webkit-backdrop-filter: blur(10px); : blur(10px); border: none; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .call-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.2); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: none; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
         .call-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.1); }
         .call-btn.off { background: white; color: #333; }
         .call-btn.end-call { background: #ef4444; }
@@ -3745,10 +3745,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         let isLive = false;
         let currentStream = null;
         let pendingPortfolioTitle = '';
-        let viewerInterval;
-        let storyTimeout;
-        let callStream = null;
-        let callTimerInterval;
         let callSeconds = 0;
         let pomodoroInterval;
         let recognition;
@@ -3757,6 +3753,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
         // Voice Message Variables
         let voiceRecorder = null;
+        let viewerInterval;
+        let storyTimeout;
+        let callStream = null;
+        let callTimerInterval;
+
+        // Voice Message Variables
         let voiceChunks = [];
         let videoNoteRecorder = null;
         let videoNoteChunks = [];
@@ -3766,6 +3768,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         let currentKanbanTask = null; // { id, colId }
         let currentProblemId = null;
         let interviewTimerInterval = null;
+        let locationsPopulated = false; // Ishlar filtri uchun
 
         // Voice Comment Variables
         let commentRecorder = null;
@@ -3845,18 +3848,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 console.error(`Error parsing ${key} from localStorage`, e);
                 return defaultValue;
             }
-        }
-
-        // --- PROFILNI SERVERGA SAQLASH ---
-        async function saveUserProfileToServer() {
-            if (!currentUser._id) return; // Agar ID bo'lmasa saqlamaymiz
-            try {
-                await fetch(`/api/users/${currentUser._id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(currentUser)
-                });
-            } catch (e) { console.error("Profilni saqlashda xatolik:", e); }
         }
 
         const defaultPosts = [
@@ -4018,7 +4009,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 }
 
                 // Simulyatsiya qilingan kechikish (real hayotda fetch vaqti)
-                setTimeout(() => renderPosts(), 1500); 
+                renderPosts(); 
                 checkSuggestedUsers(); // Ma'lumotlar yuklangandan keyin tavsiyalarni tekshirish
             } catch(e) { console.log("Serverga ulanib bo'lmadi"); }
         }
@@ -4365,15 +4356,21 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             updateProfileUI();
         }
 
+        // --- HELPER FUNCTIONS ---
+        function findUserById(id) {
+            if (!id) return null;
+            const stringId = String(id);
+            // Prioritize allUsers as it's the most up-to-date
+            let user = allUsers.find(u => String(u._id) === stringId || String(u.id) === stringId || u.userId === stringId || u.email === stringId);
+            if (user) return user;
+            // Fallback to saved accounts
+            user = savedAccounts.find(u => String(u.id) === stringId || u.userId === stringId || u.email === stringId);
+            return user;
+        }
+
         function openUserProfile(encodedId) {
             const id = decodeURIComponent(encodedId);
-            // try to find in allUsers, savedAccounts, or currentUser
-            let found = allUsers.find(u => (u._id && String(u._id) === String(id)) || (u.id && String(u.id) === String(id)) || (u.userId && String(u.userId) === String(id)));
-            if (!found) found = savedAccounts.find(u => (u.id && String(u.id) === String(id)) || (u.userId && String(u.userId) === String(id)));
-            if (!found) {
-                // check currentUser
-                if ((currentUser.userId && String(currentUser.userId) === String(id)) || ('uid_' + (currentUser.email||currentUser.name)) === id) found = currentUser;
-            }
+            const found = findUserById(id);
             if (!found) {
                 showToast('Foydalanuvchi topilmadi', 'error');
                 return;
@@ -4403,7 +4400,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             }
 
             // counts
-            const postsCount = (allPosts || []).filter(p => p.author && (p.author.userId === user.userId || p.author.name === user.name)).length;
+            const postsCount = (allPosts || []).filter(p => p && p.author && (p.author.userId === user.userId || p.author.email === user.userId)).length;
             document.getElementById('p-posts-count').textContent = postsCount;
             
             // Fix for Array vs Number (Real Backend Data)
@@ -4430,7 +4427,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             }
             // render profile posts (posts authored by this profile)
             const profileFeedContainer = document.getElementById('profile-feed-container');
-            if (profileFeedContainer) {
+            if (profileFeedContainer && allPosts) {
                 const profilePosts = (allPosts || []).filter(p => p && p.author && ((p.author.userId && p.author.userId === user.userId) || (p.author.name && p.author.name === user.name)));
                 // If none found, show fallback message
                 if (profilePosts.length === 0) {
@@ -4443,36 +4440,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
         function startChatFromSearch(encodedId) {
             const id = decodeURIComponent(encodedId);
-            // try to find user similar to openUserProfile
-            let found = allUsers.find(u => (u.id && String(u.id) === String(id)) || (u.userId && String(u.userId) === String(id)));
-            if (!found) found = savedAccounts.find(u => (u.id && String(u.id) === String(id)) || (u.userId && String(u.userId) === String(id)));
+            const found = findUserById(id);
             if (!found) {
                 showToast('Foydalanuvchi topilmadi', 'error');
                 return;
             }
-            startChatWith(found.id || found.userId);
-        }
-
-        // --- UPLOAD / PROFILE PERSISTENCE HELPERS ---
-        function saveProfileToStorage() {
-            try {
-                localStorage.setItem('currentUserProfile', JSON.stringify(currentUser));
-            } catch (e) { console.error('Save profile failed', e); }
-        }
-
-        function loadProfileFromStorage() {
-            try {
-                const raw = localStorage.getItem('currentUserProfile');
-                if (!raw) return;
-                const saved = JSON.parse(raw);
-                Object.assign(currentUser, saved);
-                updateProfileUI();
-            } catch (e) { console.error('Load profile failed', e); }
-        }
-
-    // Missing Helper Function for Chat
-    function getChatId(user1, user2 = currentUser.userId) {
-        return [user1, user2].sort().join('_');
+            startChatWith(found.userId || found.id);
     }
 
         // Story ko'rish
@@ -4562,20 +4535,20 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             }
         }
 
-        function closeLightbox() {
+        const closeStoryViewer = () => {
             document.getElementById('story-viewer').style.display = 'none';
             document.getElementById('story-content-wrapper').innerHTML = ''; // Stop video
             clearTimeout(storyTimeout);
             document.getElementById('story-viewer').onclick = null; // Remove listener
-        }
-        
+        };
+
         function reactToStory(emoji) {
             showToast(`Siz storyga reaksiya bildirdingiz: ${emoji}`, 'success');
             // Bu yerda backendga so'rov yuborish mumkin
         }
 
         // Alias for HTML onclick compatibility
-        const closeStoryViewer = closeLightbox;
+        const closeLightbox = closeStoryViewer;
         
         // Portfolio Lightbox
         // Universal Lightbox for Portfolio and Chat Images
@@ -4683,7 +4656,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
                 // O'chirish tugmasi (faqat o'zimizning postlar uchun)
                 const isOwner = post.author.userId === currentUser.userId;
-                const deleteBtn = isOwner ? `<button class="delete-post-btn" onclick="deletePost(${post.id})" title="O'chirish" style="margin-left: 5px;"><i class="ri-delete-bin-line"></i></button>` : '';
+                const deleteBtn = isOwner ? `<button class="delete-post-btn" onclick="deletePost(${post.id}, event)" title="O'chirish" style="margin-left: 5px;"><i class="ri-delete-bin-line"></i></button>` : '';
                 
                 // Saqlash tugmasi
                 const isSaved = savedPosts.includes(post.id);
@@ -4791,7 +4764,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         function filterJobs() {
             // Populate locations dynamically if empty
             const locationSelect = document.getElementById('job-location');
-            if (locationSelect) {
+            if (locationSelect && !locationsPopulated) {
                 const uniqueLocations = [...new Set(jobs.map(j => j.location))];
                 uniqueLocations.forEach(loc => {
                     let exists = false;
@@ -4805,6 +4778,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         locationSelect.appendChild(opt);
                     }
                 });
+                locationsPopulated = true;
             }
 
             const text = document.getElementById('job-search') ? document.getElementById('job-search').value.toLowerCase() : '';
@@ -6100,14 +6074,10 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const displayStyle = isMe ? 'flex' : 'none';
             const displayBlock = isMe ? 'block' : 'none';
             
-            if(document.getElementById('sidebar-edit-btn')) document.getElementById('sidebar-edit-btn').style.display = displayBlock;
-            if(document.getElementById('btn-edit-cover')) document.getElementById('btn-edit-cover').style.display = displayStyle;
-            if(document.getElementById('btn-edit-avatar')) document.getElementById('btn-edit-avatar').style.display = displayStyle;
-            
-            // Xabar yozish tugmasi (faqat boshqalar uchun)
-            if(document.getElementById('btn-msg-profile')) document.getElementById('btn-msg-profile').style.display = isMe ? 'none' : 'inline-flex';
-
-            // Header ma'lumotlarini yangilash (Xatolik tuzatildi: innerHTML o'rniga textContent)
+            document.getElementById('sidebar-edit-btn').style.display = displayBlock;
+            document.getElementById('btn-edit-cover').style.display = displayStyle;
+            document.getElementById('btn-edit-avatar').style.display = displayStyle;
+            document.getElementById('btn-msg-profile').style.display = isMe ? 'none' : 'inline-flex';
             document.getElementById('ph-name').textContent = user.name;
             document.getElementById('ph-headline').textContent = user.headline;
             
@@ -6119,7 +6089,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const achievements = user.achievements = user.achievements || [];
 
             // Stats Update (Instagram Style)
-            const myPostCount = allPosts.filter(p => p && p.author && p.author.userId === user.userId).length;
+            const myPostCount = allPosts.filter(p => p && p.author && (p.author.userId === user.userId || p.author.email === user.userId)).length;
             document.getElementById('p-posts-count').textContent = myPostCount;
             document.getElementById('p-followers-count').textContent = user.followers || 0;
             document.getElementById('p-following-count').textContent = user.following || 0;
@@ -6142,33 +6112,13 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const skillsContainer = document.getElementById('ph-skills');
             
             // Normalize skills (handle strings vs objects)
-            const normalizedSkills = skills.map(s => typeof s === 'string' ? { name: s, percent: Math.floor(Math.random() * 40) + 60 } : s);
+            const normalizedSkills = skills.map(s => typeof s === 'string' ? s : s.name);
 
-            let skillsHtml = normalizedSkills.map((skill, index) => `
-                <div class="skill-progress-item" style="width: 100%;">
-                    <div class="skill-info">
-                        <span>${skill.name}</span>
-                        <span>${skill.percent}%</span>
-                    </div>
-                    <div class="skill-bar-bg">
-                        <div class="skill-bar-fill" style="width: ${skill.percent}%"></div>
-                        <div class="skill-bar-fill" id="skill-bar-${index}" style="width: 0%"></div>
-                    </div>
-                </div>
-            `).join('');
+            let skillsHtml = normalizedSkills.map(skillName => `<div class="skill-tag">${skillName}</div>`).join('');
             
             if(isMe) skillsHtml += `<button class="cp-btn" style="width: 100%; margin-top: 10px; border: 1px dashed var(--primary-color); color: var(--primary-color); justify-content: center;" onclick="addSkill()">+ Ko'nikma qo'shish</button>`;
 
             skillsContainer.innerHTML = skillsHtml;
-            skillsContainer.style.display = 'block'; // Stack items
-            
-            // Animate Skills (Animatsiya)
-            setTimeout(() => {
-                normalizedSkills.forEach((skill, index) => {
-                    const bar = document.getElementById(`skill-bar-${index}`);
-                    if(bar) bar.style.width = `${skill.percent}%`;
-                });
-            }, 100);
             
             // Prepare Projects HTML
             const userProjects = projects.filter(p => p.userId === user.userId || p.author === user.name);
@@ -6268,7 +6218,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             `;
 
             // Faqat o'zimizning postlarni filtrlash
-            const myPosts = allPosts.filter(p => p.author && p.author.userId === user.userId);
+            const myPosts = allPosts.filter(p => p && p.author && (p.author.userId === user.userId || p.author.email === user.userId));
             renderFeed(myPosts, 'profile-feed-container');
 
             // Profil rasmlarini yangilash
@@ -6303,7 +6253,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const user = allUsers.find(u => u.id == id || u.userId == id);
             if (user) {
                 viewingUser = user;
-                switchTab('profile');
+                switchTab('profile'); // This will call renderProfile
             }
         }
 
@@ -6314,9 +6264,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         }
 
         async function startChatWith(id) {
-            let user = allUsers.find(u => u.id == id || u.userId == id);
-            // Agar allUsers da topilmasa, savedAccounts dan qidirib ko'ramiz
-            if (!user) user = savedAccounts.find(u => u.id == id || u.userId == id);
+            let user = findUserById(id);
             
             if(user) {
                 activeChatUser = user;
@@ -6603,7 +6551,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         function addSkill() {
             const name = prompt("Yangi ko'nikma (Skill) nomini kiriting:");
             if (name) {
-                const percent = prompt("Bilish darajangiz (0-100%):", "50");
+                const percent = 50; // Default value, can be edited later
                 if (percent !== null) {
                     currentUser.skills.push({ name: name, percent: parseInt(percent) || 50 });
                     saveUserProfileToServer(); // Serverga saqlash
@@ -6861,9 +6809,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     alert("Diqqat: Kamera ishlashi uchun sayt HTTPS protokoli orqali yoki localhost da ishlashi kerak. Hozirgi ulanish xavfsiz emas.");
                     return;
                 }
-
-                // HTTPS check removed to allow trying on all environments, 
-                // though browser will still block if insecure.
 
                 try {
                     // Kamera va mikrofonga ruxsat so'rash
@@ -7568,10 +7513,10 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 .catch(err => {
                     loginBtn.classList.remove('loading');
                     console.log("Server yo'q, lokal tekshirilmoqda...");
-                    // Fallback to local logic if server is down
-                    const storedUser = safeJSONParse('registeredUser', null);
-                    const globalUser = allUsers.find(u => (u.email === username || u.phone === username) && u.password === password);
-                    const targetUser = globalUser || (storedUser && username === storedUser.email && password === storedUser.password ? storedUser : null);
+                    // Fallback: Check all known users
+                    const targetUser = allUsers.find(u => 
+                        (u.email === username || u.userId === username) && u.password === password // NOTE: Plain text password check, only for demo!
+                    );
 
                     if (targetUser) {
                         // Bloklanganligini tekshirish
@@ -7581,34 +7526,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             return;
                         }
 
-                        currentUser.name = targetUser.name;
-                        currentUser.userId = targetUser.userId || targetUser.email; 
-                        
-                        // Arraylarni saqlab qolish (agar storedUser da yo'q bo'lsa)
-                        const backupArrays = {
-                            achievements: currentUser.achievements,
-                            skills: currentUser.skills,
-                            experience: currentUser.experience,
-                            portfolio: currentUser.portfolio,
-                            education: currentUser.education
-                        };
-
-                        if(targetUser.headline) currentUser.headline = targetUser.headline;
-                        if(targetUser.githubUsername) currentUser.githubUsername = targetUser.githubUsername;
+                        // Simply assign the found user to currentUser
                         Object.assign(currentUser, targetUser);
+                        // Ensure essential IDs are set
+                        currentUser.userId = targetUser.userId || targetUser.email;
                         if(targetUser._id) currentUser._id = targetUser._id;
-                        
-                        // Arraylarni qayta tiklash (agar null bo'lib qolgan bo'lsa)
-                        if(!currentUser.achievements) currentUser.achievements = backupArrays.achievements;
-                        if(!currentUser.skills) currentUser.skills = backupArrays.skills;
-                        if(!currentUser.experience) currentUser.experience = backupArrays.experience;
-                        if(!currentUser.portfolio) currentUser.portfolio = backupArrays.portfolio;
-                        if(!currentUser.education) currentUser.education = backupArrays.education;
-                        
-                        currentUser.userId = targetUser.userId || targetUser.email; 
-                    } else if (!storedUser) {
-                        // Demo rejim (agar hech kim ro'yxatdan o'tmagan bo'lsa)
-                        currentUser.name = username.split('@')[0];
+
                     } else {
                         showToast("Email yoki parol noto'g'ri!", 'error');
                         return;
@@ -7619,6 +7542,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     } else {
                         localStorage.removeItem('rememberedUser');
                     }
+                    saveAccount(currentUser);
 
                     completeLogin();
                 });
@@ -7787,7 +7711,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 }
 
                 // WebSocketni ishga tushirish
-                initWebSocket();
+                // initWebSocket(); // This function was empty and removed.
                 
                 // Yangi foydalanuvchilar uchun tavsiyalar (Real vaqtda tekshirish)
                 setTimeout(() => {
@@ -7840,6 +7764,15 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         let currentCropInput;
         let cropMode = 'post'; // 'post', 'avatar', 'cover'
 
+        function dataURLtoFile(dataurl, filename) {
+            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while(n--){
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], filename, {type:mime});
+        }
+
         function closeCropModal() {
             document.getElementById('crop-modal').style.display = 'none';
             if (cropper) {
@@ -7866,6 +7799,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     preview.src = croppedDataUrl;
                     preview.style.display = 'block';
                     document.getElementById('avatar-upload-icon').style.display = 'none';
+                    // FIX: Update the file object to be uploaded with the cropped version
+                    registrationAvatarFile = dataURLtoFile(croppedDataUrl, 'avatar.png');
                 } else if (cropMode === 'cover') {
                     currentUser.coverPhoto = croppedDataUrl;
                     saveProfileToStorage();
@@ -8150,7 +8085,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     const rect = btn.getBoundingClientRect();
                     heart.style.left = (rect.left + rect.width / 2 - 12) + 'px'; // Center horizontally
                     heart.style.top = (rect.top - 10) + 'px';
-                    document.body.appendChild(heart);
+            btn.appendChild(heart);
                     setTimeout(() => heart.remove(), 800);
                 }
 
@@ -8175,6 +8110,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
         // Postni o'chirish
         function deletePost(id) {
+            if (event) event.stopPropagation();
             const index = allPosts.findIndex(p => p.id === id);
             if (index !== -1 && allPosts[index].author.userId === currentUser.userId) {
                 if (confirm("Haqiqatan ham bu postni o'chirmoqchimisiz?")) {
@@ -8264,16 +8200,22 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // Ovozli Izoh (Voice Comment)
         async function toggleCommentVoice(postId) {
             const icon = document.getElementById(`mic-comment-${postId}`);
-            const input = document.getElementById(`input-${postId}`);
             
             if (recordingPostId === postId) {
                 // Stop recording
                 if(commentRecorder && commentRecorder.state !== 'inactive') {
                     commentRecorder.stop();
+                    icon.className = 'ri-mic-fill';
+                    icon.style.color = 'var(--text-gray)';
                 }
                 return;
             }
             
+            // Boshqa post uchun yozuvni to'xtatish
+            if(recordingPostId !== null && commentRecorder && commentRecorder.state !== 'inactive') {
+                commentRecorder.stop();
+            }
+
             if (recordingPostId !== null) {
                 alert("Avval boshqa yozuvni yakunlang.");
                 return;
@@ -8287,16 +8229,23 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
 
                 commentRecorder.ondataavailable = e => commentChunks.push(e.data);
                 
-                commentRecorder.onstop = () => {
+                commentRecorder.onstop = async () => {
                     const blob = new Blob(commentChunks, { type: 'audio/webm' });
-                    const audioUrl = URL.createObjectURL(blob);
-                    addComment(postId, null, 'Siz', audioUrl);
+                    
+                    // Faylni serverga yuklash
+                    const fileData = await uploadFileToServer(blob);
+                    if (fileData && fileData.url) {
+                        addComment(postId, null, currentUser.name, fileData.url);
+                    } else {
+                        showToast("Ovozli xabarni yuklashda xatolik.", "error");
+                    }
                     
                     stream.getTracks().forEach(track => track.stop());
                     recordingPostId = null;
                     commentRecorder = null;
                 };
 
+                // Yozishni boshlash
                 commentRecorder.start();
                 icon.className = 'ri-stop-circle-fill';
                 icon.style.color = '#ef4444';
@@ -9816,7 +9765,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
     async function loadGitHubRepos(username) { // YANGILANDI
         const container = document.getElementById('profile-github-repos');
         if (!container) return;
-
+    
         if (!username) {
             container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-gray); font-size: 13px;">GitHub username kiritilmagan.</div>';
             return;
@@ -9830,6 +9779,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             if (!response.ok) {
                 if (response.status === 404) {
                     throw new Error('Foydalanuvchi topilmadi');
+                } else if (response.status === 403) {
+                    throw new Error('API so\'rovlari cheklangan');
                 } else {
                     throw new Error('API xatoligi');
                 }
@@ -9852,7 +9803,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 </a>
             `).join('');
         } catch (e) {
-            container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #ef4444;">Xatolik: ${e.message}. GitHub username noto'g'ri yoki API cheklovi.</div>`;
+            container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #ef4444;">Xatolik: ${e.message}. GitHub username noto'g'ri yoki API limiti tugagan.</div>`;
         }
     }
 
@@ -9861,6 +9812,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
     function toggleSnow(enabled) {
         localStorage.setItem('snowEffect', enabled);
         const existingContainer = document.getElementById('snow-container');
+        
+        if (snowInterval) clearInterval(snowInterval);
         
         if (enabled) {
             if (!existingContainer) {

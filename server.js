@@ -56,37 +56,13 @@ mongoose.connect(mongoUrl)
   })
   .catch(err => console.error('MongoDB xatosi:', err));
 
-// CEO Account Creation
-async function createCeoAccount() {
-    try {
-        const ceoEmail = 'ceo@engineer.app';
-        const existingCeo = await User.findOne({ email: ceoEmail });
-        if (!existingCeo) {
-            const hashedPassword = await bcrypt.hash('admin123', 10);
-            const ceo = new User({
-                name: 'Ikromjon Islomov',
-                email: ceoEmail,
-                password: hashedPassword,
-                headline: 'CEO & Founder of Engineer App',
-                about: 'Engineer App asoschisi. Barchangizni platformamizda ko\'rib turganimdan xursandman!',
-                avatar: 'https://i.pravatar.cc/150?u=ceo',
-                isPremium: true
-            });
-            await ceo.save();
-            console.log('CEO account created');
-        }
-    } catch (err) {
-        console.error('CEO account error:', err);
-    }
-}
-
 // --- MONGODB SCHEMAS (Jadvallar) ---
 
 // Foydalanuvchi Jadvali
 const UserSchema = new mongoose.Schema({
     name: String,
-    email: { type: String, unique: true },
-    password: String,
+    email: { type: String, unique: true, required: true },
+    password: { type: String, required: true },
     headline: String,
     phone: String,
     githubUsername: String,
@@ -134,8 +110,8 @@ const Post = mongoose.model('Post', PostSchema);
 
 // Xabarlar Jadvali (Chat)
 const MessageSchema = new mongoose.Schema({
-    from: String,
-    to: String,
+    from: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    to: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     senderName: String,
     text: String,
     image: String,
@@ -156,6 +132,46 @@ const StorySchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now, expires: 86400 } // 86400 sekund = 24 soat
 });
 const Story = mongoose.model('Story', StorySchema);
+
+// --- HELPER FUNCTIONS ---
+
+// Foydalanuvchi ma'lumotlaridan parolni olib tashlash
+function sanitizeUser(user) {
+    const userObject = user.toObject();
+    delete userObject.password;
+    return userObject;
+}
+
+mongoose.connect(mongoUrl)
+  .then(() => {
+      console.log('MongoDB bazasiga muvaffaqiyatli ulandi!');
+      createCeoAccount();
+  })
+  .catch(err => console.error('MongoDB xatosi:', err));
+
+// CEO Account Creation
+async function createCeoAccount() {
+    try {
+        const ceoEmail = 'ceo@engineer.app';
+        const existingCeo = await User.findOne({ email: ceoEmail });
+        if (!existingCeo) {
+            const hashedPassword = await bcrypt.hash('admin123', 10);
+            const ceo = new User({
+                name: 'Ikromjon Islomov',
+                email: ceoEmail,
+                password: hashedPassword,
+                headline: 'CEO & Founder of Engineer App',
+                about: 'Engineer App asoschisi. Barchangizni platformamizda ko\'rib turganimdan xursandman!',
+                avatar: 'https://i.pravatar.cc/150?u=ceo',
+                isPremium: true
+            });
+            await ceo.save();
+            console.log('CEO account created');
+        }
+    } catch (err) {
+        console.error('CEO account error:', err);
+    }
+}
 
 // --- API ROUTES (Backend funksiyalari) ---
 
@@ -180,7 +196,9 @@ app.post('/api/register', async (req, res) => {
         };
         io.emit('new_user', userForClient);
 
-        res.json({ success: true, user: newUser });
+        const sanitized = sanitizeUser(newUser);
+
+        res.json({ success: true, user: sanitized });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -196,7 +214,8 @@ app.post('/api/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(401).json({ success: false, message: "Email yoki parol xato" });
 
-        res.json({ success: true, user });
+        const sanitized = sanitizeUser(user);
+        res.json({ success: true, user: sanitized });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -297,9 +316,16 @@ app.delete('/api/admin/delete/:id', async (req, res) => {
 // 9. Chat tarixini olish
 app.get('/api/messages/:user1/:user2', async (req, res) => {
     try {
-        const { user1, user2 } = req.params;
+        const user1Email = req.params.user1;
+        const user2Email = req.params.user2;
+
+        const user1 = await User.findOne({ email: user1Email });
+        const user2 = await User.findOne({ email: user2Email });
+
+        if (!user1 || !user2) return res.status(404).json({ error: "Foydalanuvchi topilmadi" });
+
         const messages = await Message.find({
-            $or: [{ from: user1, to: user2 }, { from: user2, to: user1 }]
+            $or: [{ from: user1._id, to: user2._id }, { from: user2._id, to: user1._id }]
         }).sort({ timestamp: 1 });
         res.json(messages);
     } catch (err) {
@@ -312,8 +338,10 @@ app.put('/api/users/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
+        delete updates.password; // Parolni bu yo'l bilan o'zgartirishga ruxsat bermaslik
         const user = await User.findByIdAndUpdate(id, updates, { new: true });
-        res.json({ success: true, user });
+        const sanitized = sanitizeUser(user);
+        res.json({ success: true, user: sanitized });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -440,9 +468,17 @@ io.on('connection', (socket) => {
   // Xabar yuborish va bazaga saqlash
   socket.on('private_message', async (data) => {
       try {
-          const newMessage = new Message(data);
+          const fromUser = await User.findOne({ email: data.from });
+          const toUser = await User.findOne({ email: data.to });
+
+          if (!fromUser || !toUser) return console.error("Xabar yuborishda foydalanuvchi topilmadi.");
+
+          const messageData = { ...data, from: fromUser._id, to: toUser._id };
+          const newMessage = new Message(messageData);
           await newMessage.save();
-          io.to(data.to).emit('new_message', data);
+
+          // Qabul qiluvchiga xabarni yuborish
+          io.to(data.to).emit('new_message', messageData);
       } catch (err) {
           console.error('Xabarni saqlashda xatolik:', err);
       }
