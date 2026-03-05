@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const http = require('http');
+const https = require('https'); // Self-ping uchun
 const { Server } = require('socket.io');
 const path = require('path');
 const multer = require('multer'); // Fayl yuklash uchun
@@ -142,13 +143,6 @@ function sanitizeUser(user) {
     return userObject;
 }
 
-mongoose.connect(mongoUrl)
-  .then(() => {
-      console.log('MongoDB bazasiga muvaffaqiyatli ulandi!');
-      createCeoAccount();
-  })
-  .catch(err => console.error('MongoDB xatosi:', err));
-
 // CEO Account Creation
 async function createCeoAccount() {
     try {
@@ -232,14 +226,16 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 // 4. Foydalanuvchilarni olish
 app.get('/api/users', async (req, res) => {
-    const users = await User.find();
-    res.json(users.map(u => ({ 
-        ...u._doc, 
-        id: u._id, 
-        userId: u.email,
-        followersCount: u.followers.length,
-        followingCount: u.following.length
-    })));
+    try {
+        const users = await User.find();
+        const sanitizedUsers = users.map(user => {
+            const sanitized = sanitizeUser(user);
+            return { ...sanitized, id: user._id, userId: user.email, followersCount: user.followers.length, followingCount: user.following.length };
+        });
+        res.json(sanitizedUsers);
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
 // 5. Post yaratish
@@ -511,3 +507,16 @@ server.listen(PORT, '0.0.0.0', () => {
     }
   }
 });
+
+// --- RENDER.COM UYQUSINI OLDINI OLISH (Self-Ping) ---
+// Har 14 daqiqada o'ziga so'rov yuboradi
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://engineer-app.onrender.com';
+if (process.env.NODE_ENV === 'production' || RENDER_EXTERNAL_URL.includes('onrender.com')) {
+    setInterval(() => {
+        https.get(RENDER_EXTERNAL_URL, (resp) => {
+            console.log(`Self-ping yuborildi: ${resp.statusCode}`);
+        }).on('error', (err) => {
+            console.error('Self-ping xatosi:', err.message);
+        });
+    }, 14 * 60 * 1000); // 14 daqiqa
+}

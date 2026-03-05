@@ -4011,7 +4011,11 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 // Simulyatsiya qilingan kechikish (real hayotda fetch vaqti)
                 renderPosts(); 
                 checkSuggestedUsers(); // Ma'lumotlar yuklangandan keyin tavsiyalarni tekshirish
-            } catch(e) { console.log("Serverga ulanib bo'lmadi"); }
+            } catch(e) { 
+                console.log("Serverga ulanib bo'lmadi, lokal rejimda ishlamoqda."); 
+                renderPosts(); // Server yo'q bo'lsa ham lokal postlarni ko'rsatish
+                checkSuggestedUsers();
+            }
         }
         
         function saveAllPostsToLocal() {
@@ -4786,7 +4790,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const minSalary = document.getElementById('job-salary') ? parseInt(document.getElementById('job-salary').value) : 0;
 
             const container = document.getElementById('jobs-list');
-            container.innerHTML = '';
+            
             
             const filteredJobs = jobs.filter(job => {
                 const matchesText = job.title.toLowerCase().includes(text) || job.company.toLowerCase().includes(text);
@@ -4800,8 +4804,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 return;
             }
 
-            filteredJobs.forEach(job => {
-                container.innerHTML += `
+            container.innerHTML = filteredJobs.map(job => `
                     <div class="job-card">
                         <img src="${job.logo}" class="job-logo" onerror="this.src='https://via.placeholder.com/50'">
                         <div class="job-info">
@@ -4810,9 +4813,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             <div class="job-meta">${job.location} • $${job.salary} • ${job.time}</div>
                             <button class="apply-btn" onclick="openApplyModal('${job.title}', '${job.company}')">Topshirish</button>
                         </div>
-                    </div>
-                `;
-            });
+                    </div>`).join('');
         }
 
         function resetJobFilter() {
@@ -4825,7 +4826,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // Tarmoq (Network) chizish
         function renderNetwork() {
             const container = document.getElementById('network-list');
-            container.innerHTML = '';
             if (networkUsers.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state" style="grid-column: 1/-1;">
@@ -4835,12 +4835,11 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     </div>`;
                 return;
             }
-            networkUsers.forEach(user => {
+            container.innerHTML = networkUsers.map(user => {
                 const btnText = user.connected ? 'So\'rov yuborildi' : 'Ulanish';
                 const btnStyle = user.connected ? 'color: gray; border-color: gray;' : '';
                 const disabled = user.connected ? 'disabled' : '';
-                
-                container.innerHTML += `
+                return `
                     <div class="net-card">
                         <div class="net-bg"></div>
                         <img src="${user.avatar}" class="net-avatar">
@@ -4849,23 +4848,21 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             <div class="net-desc">${user.headline}</div>
                         </div>
                         <button class="net-btn" style="${btnStyle}" onclick="connectUser(${user.id})" ${disabled}>${btnText}</button>
-                    </div>
-                `;
-            });
+                    </div>`;
+            }).join('');
         }
 
         // Mentorlarni chizish
         function renderMentorship() {
             const container = document.getElementById('mentors-list');
-            container.innerHTML = '';
+            let html = '';
             
             // Agar o'zimiz mentor bo'lsak
             if (currentUser.isMentor) {
-                container.innerHTML += `<div style="grid-column: 1/-1; background: #ecfdf5; color: #047857; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px;">Siz mentorsiz! Talabalar siz bilan bog'lanishi mumkin.</div>`;
+                html += `<div style="grid-column: 1/-1; background: #ecfdf5; color: #047857; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px;">Siz mentorsiz! Talabalar siz bilan bog'lanishi mumkin.</div>`;
             }
 
-            mentors.forEach(m => {
-                container.innerHTML += `
+            html += mentors.map(m => `
                     <div class="mentor-card">
                         <div class="mentor-badge">${m.price}</div>
                         <img src="${m.avatar}" class="mentor-avatar">
@@ -4873,9 +4870,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         <div style="font-size: 12px; color: var(--text-gray); margin-bottom: 5px;">${m.headline}</div>
                         <div class="mentor-skills">${m.skills.map(s => `<span class="mentor-skill">${s}</span>`).join('')}</div>
                         <button class="net-btn" onclick="alert('${m.name}ga so\\'rov yuborildi!')">Bog'lanish</button>
-                    </div>
-                `;
-            });
+                    </div>`).join('');
+            container.innerHTML = html;
         }
 
         // Mavzularni chizish
@@ -5455,7 +5451,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // Guruhlarni chizish
         function renderGroups() {
             const container = document.getElementById('groups-list');
-            container.innerHTML = '';
             if (groups.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -5466,13 +5461,13 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     </div>`;
                 return;
             }
-            groups.forEach(group => {
+            container.innerHTML = groups.map(group => {
                 const btnText = group.joined ? 'Guruhga yozish' : 'Qo\'shilish';
                 const btnClass = group.joined ? 'cp-btn' : 'net-btn';
                 const btnAction = group.joined ? `openGroupChat(${group.id})` : `joinGroup(${group.id})`;
                 const btnStyle = group.joined ? 'border: 1px solid var(--border-color); justify-content: center;' : '';
 
-                container.innerHTML += `
+                return `
                     <div class="group-card">
                         <img src="${group.image}" class="group-img">
                         <div class="group-info">
@@ -5480,15 +5475,13 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             <div class="group-members">${group.members} a'zo</div>
                         </div>
                         <button class="${btnClass}" style="${btnStyle}" onclick="${btnAction}">${btnText}</button>
-                    </div>
-                `;
-            });
+                    </div>`;
+            }).join('');
         }
 
         // Loyihalarni chizish
         function renderProjects() {
             const container = document.getElementById('projects-list');
-            container.innerHTML = '';
             if (projects.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -5499,8 +5492,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     </div>`;
                 return;
             }
-            projects.forEach(proj => {
-                container.innerHTML += `
+            container.innerHTML = projects.map(proj => `
                     <div class="project-card">
                         <div class="project-header">
                             <div class="project-title">${proj.title}</div>
@@ -5511,15 +5503,12 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             ${proj.tags.map(tag => `<span class="project-tag">${tag}</span>`).join('')}
                         </div>
                         <button class="collab-btn" onclick="alert('${proj.title} loyihasiga so\\'rov yuborildi!')">Hamkorlik qilish</button>
-                    </div>
-                `;
-            });
+                    </div>`).join('');
         }
 
         // Fayllarni chizish
         function renderFiles() {
             const container = document.getElementById('files-list');
-            container.innerHTML = '';
             if (files.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state" style="grid-column: 1/-1;">
@@ -5530,16 +5519,13 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     </div>`;
                 return;
             }
-            files.forEach(file => {
-                container.innerHTML += `
+            container.innerHTML = files.map(file => `
                     <div class="file-card">
                         <i class="ri-close-circle-fill file-delete" onclick="deleteFile(${file.id}, event)"></i>
                         <i class="${file.icon} file-icon" style="color: ${file.color};"></i>
                         <div class="file-name" title="${file.name}">${file.name}</div>
                         <div class="file-meta">${file.size}</div>
-                    </div>
-                `;
-            });
+                    </div>`).join('');
         }
 
         // --- FULL CALENDAR (Yangi) ---
@@ -5594,11 +5580,11 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
             const daysInMonth = lastDayOfMonth.getDate();
             
             const dayNames = ['Yak', 'Du', 'Se', 'Chor', 'Pay', 'Ju', 'Sha'];
-            grid.innerHTML = dayNames.map(d => `<div class="cfg-day-header">${d}</div>`).join('');
+            let html = dayNames.map(d => `<div class="cfg-day-header">${d}</div>`).join('');
 
             let startingDay = firstDayOfMonth.getDay(); // 0=Sun, 1=Mon...
             for (let i = 0; i < startingDay; i++) {
-                grid.innerHTML += `<div class="cfg-day other-month"></div>`;
+                html += `<div class="cfg-day other-month"></div>`;
             }
 
             for (let i = 1; i <= daysInMonth; i++) {
@@ -5609,16 +5595,17 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 const dayEvents = calendarState.events.filter(e => e.date === dateString);
                 const eventsHtml = dayEvents.map(e => `<div class="cfg-event ${e.color}">${e.title}</div>`).join('');
 
-                grid.innerHTML += `<div class="cfg-day ${isToday}"><div class="cfg-day-num">${i}</div>${eventsHtml}</div>`;
+                html += `<div class="cfg-day ${isToday}"><div class="cfg-day-num">${i}</div>${eventsHtml}</div>`;
             }
+            grid.innerHTML = html;
         }
 
         function renderWeekView(grid) {
             grid.className = 'calendar-week-grid';
-            grid.innerHTML = '';
+            let html = '';
             
             // Header Row
-            grid.innerHTML += `<div class="cw-header"></div>`; // Corner
+            html += `<div class="cw-header"></div>`; // Corner
             const dayNames = ['Yak', 'Du', 'Se', 'Chor', 'Pay', 'Ju', 'Sha'];
             const today = new Date();
             const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
@@ -5627,21 +5614,22 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 const d = new Date(startOfWeek);
                 d.setDate(startOfWeek.getDate() + i);
                 const isToday = d.toDateString() === new Date().toDateString();
-                grid.innerHTML += `<div class="cw-header" style="${isToday ? 'color:var(--primary-color);' : ''}">${dayNames[i]} ${d.getDate()}</div>`;
+                html += `<div class="cw-header" style="${isToday ? 'color:var(--primary-color);' : ''}">${dayNames[i]} ${d.getDate()}</div>`;
             }
 
             // Time Slots (08:00 to 20:00 for demo)
             for(let hour=8; hour<=20; hour++) {
-                grid.innerHTML += `<div class="cw-time-col">${hour}:00</div>`;
+                html += `<div class="cw-time-col">${hour}:00</div>`;
                 for(let day=0; day<7; day++) {
                     // Mock event check
                     let eventHtml = '';
                     if (Math.random() > 0.9) {
                         eventHtml = `<div style="background:#e0e7ff; border-left:3px solid var(--primary-color); padding:5px; font-size:10px; border-radius:4px; margin:2px;">Meeting</div>`;
                     }
-                    grid.innerHTML += `<div class="cw-day-col" style="border-bottom:1px solid var(--border-color);">${eventHtml}</div>`;
+                    html += `<div class="cw-day-col" style="border-bottom:1px solid var(--border-color);">${eventHtml}</div>`;
                 }
             }
+            grid.innerHTML = html;
         }
 
         function switchCalendarView(view) {
@@ -5688,7 +5676,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // Eslatmalarni chizish
         function renderNotes() {
             const container = document.getElementById('notes-list');
-            container.innerHTML = '';
             if (notes.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state" style="grid-column: 1/-1;">
@@ -5699,16 +5686,13 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                     </div>`;
                 return;
             }
-            notes.forEach(note => {
-                container.innerHTML += `
+            container.innerHTML = notes.map(note => `
                     <div class="note-card">
                         <i class="ri-close-circle-fill note-delete" onclick="deleteNote(${note.id})"></i>
                         <div class="note-title">${note.title}</div>
                         <div class="note-content">${note.content}</div>
                         <div class="note-date">${note.date}</div>
-                    </div>
-                `;
-            });
+                    </div>`).join('');
         }
 
         // Admin Panelni chizish
@@ -5748,9 +5732,9 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 (user.email && user.email.toLowerCase().includes(searchTerm))
             );
             
-            filteredUsers.forEach(user => {
+            container.innerHTML = filteredUsers.map(user => {
                 const isBlocked = blockedUsers.includes(user.email);
-                container.innerHTML += `
+                return `
                     <div class="admin-user-item" style="${isBlocked ? 'opacity: 0.5; background: #fee2e2;' : ''}">
                         <div class="admin-user-info">
                             <img src="${user.avatar}" style="width: 40px; height: 40px; rounded-full;">
@@ -5764,9 +5748,8 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             <button class="admin-btn btn-ban" onclick="adminBlockUser('${user.id}')">${isBlocked ? 'Ochish' : 'Bloklash'}</button>
                             <button class="admin-btn btn-delete" onclick="adminDeleteUser('${user.id}')">O'chirish</button>
                         </div>
-                    </div>
-                `;
-            });
+                    </div>`;
+            }).join('');
         }
 
         function adminBlockUser(id) {
@@ -5824,7 +5807,6 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         function renderAdminPosts() {
             const container = document.getElementById('admin-posts-list');
             if (!container) return;
-            container.innerHTML = '';
             
             const searchInput = document.getElementById('admin-post-search');
             const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
@@ -5834,8 +5816,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                 (p.author && p.author.name.toLowerCase().includes(searchTerm))
             );
 
-            filteredPosts.forEach(post => {
-                container.innerHTML += `
+            container.innerHTML = filteredPosts.map(post => `
                     <div class="admin-user-item">
                         <div class="admin-user-info">
                             <img src="${post.author.avatar}" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;">
@@ -5847,9 +5828,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                         <div class="admin-actions">
                             <button class="admin-btn btn-delete" onclick="adminDeletePost(${post.id})">O'chirish</button>
                         </div>
-                    </div>
-                `;
-            });
+                    </div>`).join('');
         }
 
         function adminDeletePost(id) {
@@ -5864,9 +5843,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // Jonli efirlarni chizish
         function renderLive() {
             const container = document.getElementById('live-list');
-            container.innerHTML = '';
-            liveStreams.forEach(stream => {
-                container.innerHTML += `
+            container.innerHTML = liveStreams.map(stream => `
                     <div class="live-card" onclick="showToast('Efirga ulanilmoqda...', 'info')">
                         <img src="${stream.img}" class="live-thumb">
                         <div class="live-badge"><i class="ri-broadcast-line"></i> LIVE</div>
@@ -5875,9 +5852,7 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             <div style="font-weight: 600; color: var(--text-dark);">${stream.title}</div>
                             <div style="font-size: 12px; color: var(--text-gray);">${stream.user}</div>
                         </div>
-                    </div>
-                `;
-            });
+                    </div>`).join('');
         }
 
         // Statistikani chizish
@@ -6019,16 +5994,16 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
         // Qidiruv natijalarini chizish
         function renderSearch(query) {
             const container = document.getElementById('search-results');
-            container.innerHTML = '';
+            let html = '';
             const lowerQ = query.toLowerCase();
 
             // Odamlar
             const people = allUsers.filter(u => u.userId !== currentUser.userId && (u.name.toLowerCase().includes(lowerQ) || (u.headline && u.headline.toLowerCase().includes(lowerQ))));
             if (people.length > 0) {
-                container.innerHTML += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Odamlar</h3>`;
-                people.forEach(p => {
+                html += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Odamlar</h3>`;
+                html += people.map(p => {
                     const isFollowing = currentUser.following && currentUser.following.includes(p._id);
-                    container.innerHTML += `
+                    return `
                         <div class="follow-item" onclick="viewUserProfile('${p._id || p.id}')">
                             <img src="${p.avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"> 
                             <div style="flex:1; margin-left: 10px;">
@@ -6039,30 +6014,27 @@ Masalan: <h1>Salom Dunyo!</h1>"></textarea>
                             <button class="follow-btn" onclick="toggleFollow(this, '${p._id || p.id}')" style="font-size: 12px; padding: 4px 10px;">${isFollowing ? 'Bekor qilish' : '+ Obuna'}</button>
                         </div>
                     `;
-                });
+                }).join('');
             }
 
             // Ishlar
             const foundJobs = jobs.filter(j => j.title.toLowerCase().includes(lowerQ) || j.company.toLowerCase().includes(lowerQ));
             if (foundJobs.length > 0) {
-                container.innerHTML += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Ishlar</h3>`;
-                foundJobs.forEach(j => {
-                    container.innerHTML += `<div class="job-card" style="padding: 10px;"><div class="job-info"><h3>${j.title}</h3><p>${j.company}</p></div></div>`;
-                });
+                html += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Ishlar</h3>`;
+                html += foundJobs.map(j => `<div class="job-card" style="padding: 10px;"><div class="job-info"><h3>${j.title}</h3><p>${j.company}</p></div></div>`).join('');
             }
 
             // Postlar
             const foundPosts = allPosts.filter(p => p.content.toLowerCase().includes(lowerQ));
             if (foundPosts.length > 0) {
-                container.innerHTML += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Postlar</h3>`;
-                foundPosts.forEach(p => {
-                    container.innerHTML += `<div style="padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 13px;"><b>${p.author.name}:</b> ${p.content.substring(0, 100)}...</div>`;
-                });
+                html += `<h3 style="font-size: 14px; color: var(--text-gray); margin: 10px 0;">Postlar</h3>`;
+                html += foundPosts.map(p => `<div style="padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 13px;"><b>${p.author.name}:</b> ${p.content.substring(0, 100)}...</div>`).join('');
             }
 
             if (people.length === 0 && foundJobs.length === 0 && foundPosts.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-gray);">Hech narsa topilmadi</div>';
+                html = '<div style="text-align: center; padding: 20px; color: var(--text-gray);">Hech narsa topilmadi</div>';
             }
+            container.innerHTML = html;
         }
 
         // Profil sahifasini chizish
